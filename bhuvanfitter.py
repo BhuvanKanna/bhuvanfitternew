@@ -12,11 +12,14 @@ Public API
 _fourparam_gaussian(x, y0, A, x0, w)   -- the model curve (module level so
                                           scipy.optimize.curve_fit can use it)
 BhuvanFitter(data, gene_name, x_max)   -- fit + metrics + plotting for one gene
+gene_peaks(values, ...)                -- KDE peak detection for one gene
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from scipy.stats import gaussian_kde
+from scipy.signal import find_peaks
 
 
 def _fourparam_gaussian(x, y0, A, x0, w):
@@ -37,6 +40,76 @@ def _fourparam_gaussian(x, y0, A, x0, w):
     w  : float       Width parameter (w = sigma * sqrt(2)).
     """
     return y0 + A * np.exp(-((x - x0) / w) ** 2)
+
+
+def gene_peaks(values, min_prominence_frac=0.05, bw_method="silverman",
+               grid_size=1000, pad_frac=0.05, round_to=6):
+    """
+    Detect the peaks (modes) of one gene's expression distribution via a
+    Gaussian KDE — bin-independent, unlike a histogram.
+
+    A KDE is evaluated on a fine grid spanning the data range (padded), then
+    ``scipy.signal.find_peaks`` keeps local maxima whose prominence is at least
+    ``min_prominence_frac`` of the maximum density. This is the same detection
+    approach as the project's former ``find_density_peaks``.
+
+    Parameters
+    ----------
+    values : array-like
+        Expression values across strains for one gene.
+    min_prominence_frac : float
+        Minimum peak prominence as a fraction of the maximum density. Scale-free,
+        so the same threshold works across genes regardless of magnitude.
+    bw_method : str or float
+        Bandwidth passed to ``scipy.stats.gaussian_kde`` ('silverman', 'scott',
+        a scalar, or a callable). Larger = smoother = fewer peaks.
+    grid_size : int
+        Number of grid points the density is evaluated on.
+    pad_frac : float
+        Fraction of the data range to pad the grid on each side.
+    round_to : int
+        Decimal places to round each peak's expression-value (the dict key) to.
+
+    Returns
+    -------
+    dict
+        ``{peak_expression_value: {"height": <kde density at peak>,
+                                   "prominence": <peak prominence>}}``,
+        sorted by ascending expression value. The number of peaks is ``len()``
+        of this dict. Returns an empty dict for degenerate input (fewer than 5
+        finite points, no spread, a singular KDE, or no interior mode).
+    """
+    arr = np.asarray(values, dtype=float)
+    arr = arr[np.isfinite(arr)]
+    if arr.size < 5:
+        return {}
+
+    lo, hi = float(arr.min()), float(arr.max())
+    if hi - lo < 1e-12 or float(np.std(arr)) < 1e-8:
+        return {}
+
+    pad = (hi - lo) * pad_frac
+    grid = np.linspace(lo - pad, hi + pad, grid_size)
+
+    try:
+        density = gaussian_kde(arr, bw_method=bw_method)(grid)
+    except np.linalg.LinAlgError:
+        return {}
+
+    dmax = float(density.max())
+    if dmax <= 0:
+        return {}
+
+    peak_idx, props = find_peaks(density, prominence=min_prominence_frac * dmax)
+
+    peaks = {}
+    for i, prom in zip(peak_idx, props["prominences"]):
+        peak_value = round(float(grid[i]), round_to)
+        peaks[peak_value] = {
+            "height": float(density[i]),
+            "prominence": float(prom),
+        }
+    return peaks
 
 
 class BhuvanFitter:

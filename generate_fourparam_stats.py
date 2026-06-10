@@ -104,11 +104,11 @@ def git_push(repo_dir: Path, file_path: Path, message: str) -> None:
 
     run("add", file_path.name)
     if not run("status", "--porcelain", file_path.name).strip():
-        print("No changes to fourparam_table.csv — nothing to commit or push.")
+        print(f"No changes to {file_path.name} — nothing to commit or push.")
         return
     run("commit", "-m", message)
     run("push", "origin", "HEAD")
-    print("Pushed fourparam_table.csv to origin.")
+    print(f"Pushed {file_path.name} to origin.")
 
 
 def main() -> None:

@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A small toolkit that fits a **4-parameter Gaussian** to per-gene expression histograms from a *C. elegans* natural-isolate dataset and computes **truncation-index** metrics. It produces `fourparam_table.csv` (one row per gene) from `Supplementary Data 1_csv.csv`.
+A small toolkit that analyzes per-gene expression distributions from a *C. elegans* natural-isolate dataset (`Supplementary Data 1_csv.csv`). It does two independent things, both per gene:
+- fits a **4-parameter Gaussian** + computes **truncation-index** metrics → `fourparam_table.csv`;
+- detects **KDE density peaks** (number / location / height / prominence) → `peaks.json`.
 
 ## Keeping the GitHub repo updated (important)
 
@@ -18,7 +20,7 @@ Git LFS note: `Supplementary Data 1_csv.csv` (~64 MB) is tracked via **Git LFS**
 
 ## Single source of truth
 
-`bhuvanfitter.py` holds the `_fourparam_gaussian` function and the `BhuvanFitter` class. **Both `newbhuvanfitter.ipynb` and `generate_fourparam_stats.py` import from it** — never redefine the class in either of those. Make all fitting-logic changes in `bhuvanfitter.py`.
+`bhuvanfitter.py` holds the analysis library: `_fourparam_gaussian`, the `BhuvanFitter` class, and `gene_peaks` (KDE peak detection). **The notebook and both generator scripts import from it** — never redefine these elsewhere. Make all analysis-logic changes in `bhuvanfitter.py`.
 
 ## The pipeline (requires reading 3 files to see end-to-end)
 
@@ -36,6 +38,16 @@ Supplementary Data 1_csv.csv          bhuvanfitter.py
 - Genes with `< 10` finite observations, or whose `curve_fit` fails to converge, are written as a row with `fit_success=False` and NaN metrics rather than skipped or crashing.
 - `generate_fourparam_stats.py` has a module-level `COLUMNS` list that **must stay identical to the keys `BhuvanFitter.fit("fourparam")` returns** (same names, same order). If you add/rename a key in the fit dict, update `COLUMNS`.
 
+A parallel pipeline produces the peak dictionary:
+
+```
+Supplementary Data 1_csv.csv ──► generate_peaks.py ──► peaks.json
+   (load_expression, same loader)   (gene_peaks per col)   (pushed to origin)
+```
+
+- `peaks.json` is a nested dict `{gene: {peak_expression_value: {"height":..., "prominence":...}}}`. Peak count per gene = `len()` of the inner dict; a gene with no detectable mode maps to `{}`. **JSON keys are strings**, so the peak expression values are stored as strings — parse to float on load.
+- `generate_peaks.py` reuses `load_expression` and `git_push` imported from `generate_fourparam_stats.py` (single definition of each — `git_push` is file-agnostic).
+
 ## `BhuvanFitter` contract
 
 - Histogram is **always 40 bins** (`BhuvanFitter.BINS`).
@@ -45,6 +57,14 @@ Supplementary Data 1_csv.csv          bhuvanfitter.py
   `gene, y0, A, x0, w, sumsquarevalue, ti_fourparam_sigma_dist, truncationindex, min, max, right, maxheight, rightheight, n_obs, fit_success`
 - `truncationindex` (the renamed height-ratio metric) `== rightheight / maxheight`, where `maxheight = f(peak) − f(min)` and `rightheight = f(x_max) − f(min)`. It returns **NaN** when `maxheight == 0` (degenerate fit whose peak sits at/left of the data minimum — common across the full gene set, so never assume it is finite).
 - Metric properties (`truncationindex`, `ti_fourparam_sigma_dist`, `maxheight`, `rightheight`) raise `RuntimeError` until `fit` has been called.
+
+## `gene_peaks` contract
+
+`gene_peaks(values, min_prominence_frac=0.05, bw_method="silverman", grid_size=1000, pad_frac=0.05, round_to=6)` returns `{peak_expression_value: {"height": <kde density>, "prominence": <prominence>}}` for one gene.
+
+- Detection is on a **Gaussian KDE** (bin-independent), keeping `find_peaks` modes with prominence ≥ `min_prominence_frac` of the max density. Defaults reuse the former `find_density_peaks` settings; tune via the args.
+- Returns `{}` for degenerate input (`< 5` finite points, no spread, singular KDE, or no interior mode) — never assume a gene has peaks.
+- Peak-value keys are rounded to `round_to` decimals.
 
 ## Commands
 
@@ -59,9 +79,14 @@ python generate_fourparam_stats.py --limit 50 --no-push
 
 # Generate the full table locally without pushing
 python generate_fourparam_stats.py --no-push
+
+# Peak dictionary — same flags (all genes + push / sanity subset / local only)
+python generate_peaks.py
+python generate_peaks.py --limit 50 --no-push
+python generate_peaks.py --no-push
 ```
 
-After a `--limit` run, `fourparam_table.csv` is truncated to that many rows; restore the committed full table with `git checkout -- fourparam_table.csv` before pushing anything.
+Both generators take `--limit N` and `--no-push`. After a `--limit` run the output file (`fourparam_table.csv` or `peaks.json`) holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything.
 
 The notebook (`newbhuvanfitter.ipynb`) is just `from bhuvanfitter import BhuvanFitter` plus a synthetic single-gene example — use it for interactive inspection of one gene's fit and `hist()` plot.
 
