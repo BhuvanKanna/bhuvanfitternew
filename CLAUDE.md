@@ -38,6 +38,8 @@ Supplementary Data 1_csv.csv          bhuvanfitter.py
 - Genes with `< 10` finite observations, or whose `curve_fit` fails to converge, are written as a row with `fit_success=False` and NaN metrics rather than skipped or crashing.
 - `generate_fourparam_stats.py` has a module-level `COLUMNS` list that **must stay identical to the keys `BhuvanFitter.fit("fourparam")` returns** (same names, same order). If you add/rename a key in the fit dict, update `COLUMNS`.
 
+A near-identical variant, `generate_fourparam_stats_excluded.py`, fits the same 4-parameter Gaussian but **drops every expression value `<= -0.75`** from each gene's array before fitting (so `n_obs` shrinks and a gene can fall below `MIN_OBS`). It imports `COLUMNS`, `MIN_OBS`, `load_expression`, `git_push`, and `_failed_row` from `generate_fourparam_stats.py` (single source of truth — only `build_table`, the threshold constant `EXCLUDE_AT_OR_BELOW = -0.75`, and output naming differ) and writes/pushes `fourparam_table_excluded.csv`. Same `--limit` / `--no-push` flags.
+
 A parallel pipeline produces the peak dictionary:
 
 ```
