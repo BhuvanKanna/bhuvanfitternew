@@ -50,13 +50,37 @@ Supplementary Data 1_csv.csv ──► generate_peaks.py ──► peaks.json
 
 ## `BhuvanFitter` contract
 
+- Two fit models are registered in `_FIT_REGISTRY` and dispatched through
+  `fit(model, **kwargs)`: **`"fourparam"`** and **`"kde"`**. `active_fits` tracks
+  which have run; each fit sets its flag, and `hist(lines=[...])` only draws fits
+  that have been run. `**kwargs` are forwarded to the chosen fit method
+  (`fourparam` takes none; `kde` takes the `gene_peaks` knobs).
 - Histogram is **always 40 bins** (`BhuvanFitter.BINS`).
+
+**`fit("fourparam")`**
 - The fit uses `curve_fit(..., method="trf")` with **default linear loss = ordinary least squares**. This is deliberate: it genuinely minimizes the residual sum of squares. (An older Colab version used `loss="soft_l1"`, which is robust but does *not* minimize SSE — it yields different `x0/w` and therefore different metrics. Do not switch back unless intentionally matching that legacy output.)
 - `x_max` (constructor arg, defaults to the data max) is the truncation ceiling used by the metrics.
-- `fit("fourparam")` returns a 15-key dict:
+- Returns a 15-key dict:
   `gene, y0, A, x0, w, sumsquarevalue, ti_fourparam_sigma_dist, truncationindex, min, max, right, maxheight, rightheight, n_obs, fit_success`
 - `truncationindex` (the renamed height-ratio metric) `== rightheight / maxheight`, where `maxheight = f(peak) − f(min)` and `rightheight = f(x_max) − f(min)`. It returns **NaN** when `maxheight == 0` (degenerate fit whose peak sits at/left of the data minimum — common across the full gene set, so never assume it is finite).
-- Metric properties (`truncationindex`, `ti_fourparam_sigma_dist`, `maxheight`, `rightheight`) raise `RuntimeError` until `fit` has been called.
+- Metric properties (`truncationindex`, `ti_fourparam_sigma_dist`, `maxheight`, `rightheight`) raise `RuntimeError` until `fit("fourparam")` has been called.
+
+**`fit("kde")`**
+- Runs a Gaussian KDE and **reuses the module-level `gene_peaks`** for mode
+  detection, so the peaks it reports are identical to `generate_peaks.py` /
+  `peaks.json`. Accepts `bw_method`, `min_prominence_frac`, `grid_size`,
+  `pad_frac` (same meanings as `gene_peaks`).
+- Returns a 6-key dict:
+  `gene, n_peaks, peaks, bw_method, n_obs, fit_success`, where `peaks` is the
+  `gene_peaks` dict `{value: {"height", "prominence"}}` and `n_peaks == len(peaks)`.
+- `fit_success` is `False` (and the cached density is `None`) only when the KDE is
+  singular; peak detection still returns `{}` rather than raising. `kde_function(x)`
+  evaluates the cached KDE (raises `RuntimeError` if not run / didn't converge).
+
+**Plotting** — `hist(lines=["fourparam", "kde"])` overlays either/both fitted
+curves on the 40-bin histogram. The KDE density (which integrates to 1) is scaled
+onto the bin-count axis by `n_obs * bin_width`, with `▼` markers at each detected
+peak. Unrecognised / not-yet-run / non-converged fits are skipped with a warning.
 
 ## `gene_peaks` contract
 
@@ -88,7 +112,7 @@ python generate_peaks.py --no-push
 
 Both generators take `--limit N` and `--no-push`. After a `--limit` run the output file (`fourparam_table.csv` or `peaks.json`) holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything.
 
-The notebook (`newbhuvanfitter.ipynb`) is just `from bhuvanfitter import BhuvanFitter` plus a synthetic single-gene example — use it for interactive inspection of one gene's fit and `hist()` plot.
+The notebook (`newbhuvanfitter.ipynb`) is just `from bhuvanfitter import BhuvanFitter, gene_peaks` plus a synthetic single-gene example — use it for interactive inspection of one gene's `fit("fourparam")` / `fit("kde")` and the `hist(lines=["fourparam", "kde"])` overlay.
 
 ## Other data files
 

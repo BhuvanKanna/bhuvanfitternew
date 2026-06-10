@@ -117,10 +117,17 @@ class BhuvanFitter:
     Fit a 4-parameter Gaussian to one gene's expression histogram and report
     the fit parameters together with two truncation-index metrics.
 
-    The histogram is always computed with 40 bins. ``fit("fourparam")`` returns
-    a dict with everything ``compute_fourparam_table`` needs for one gene
-    (minus ``has_minus_one_peak``); ``hist(lines=["fourparam"])`` overlays the
-    fitted curve.
+    The histogram is always computed with 40 bins. Two fit models are
+    registered:
+
+    - ``fit("fourparam")`` returns a dict with everything
+      ``compute_fourparam_table`` needs for one gene (minus
+      ``has_minus_one_peak``); ``hist(lines=["fourparam"])`` overlays the
+      fitted curve.
+    - ``fit("kde")`` runs a bin-independent Gaussian KDE and detects its modes
+      (reusing the module-level ``gene_peaks``); ``hist(lines=["kde"])``
+      overlays the density curve (scaled to bin counts) with markers at each
+      detected peak. The two overlays compose: ``hist(lines=["fourparam", "kde"])``.
 
     Parameters
     ----------
@@ -132,7 +139,7 @@ class BhuvanFitter:
     """
 
     BINS = 40
-    _FIT_REGISTRY = {"fourparam": "_fit_fourparam"}
+    _FIT_REGISTRY = {"fourparam": "_fit_fourparam", "kde": "_fit_kde"}
 
     def __init__(self, data, gene_name: str, x_max=None):
         self.gene_name = gene_name
@@ -159,6 +166,13 @@ class BhuvanFitter:
         self.fourparam_w = None
         self.fourparam_sumsquare = None
 
+        # kde result storage
+        self.kde_object = None
+        self.kde_grid = None
+        self.kde_density = None
+        self.kde_peaks = None
+        self.kde_bw_method = None
+
     # -- Simple statistics -----------------------------------------------------
 
     def min(self):
@@ -169,31 +183,46 @@ class BhuvanFitter:
 
     # -- Public dispatch -------------------------------------------------------
 
-    def fit(self, model: str) -> dict:
+    def fit(self, model: str, **kwargs) -> dict:
         """
         Run the requested fit and return its results as a dict.
 
         Parameters
         ----------
-        model : str   Currently only 'fourparam' is supported.
+        model : str
+            'fourparam' or 'kde'.
+        **kwargs
+            Extra keyword arguments forwarded to the chosen fit. 'fourparam'
+            takes none; 'kde' accepts ``bw_method``, ``min_prominence_frac``,
+            ``grid_size`` and ``pad_frac`` (see ``_fit_kde`` / ``gene_peaks``).
 
         Returns
         -------
-        dict   Everything compute_fourparam_table records for one gene, except
-               has_minus_one_peak, plus the geometry behind the ratio:
+        dict
+            For ``"fourparam"`` — everything compute_fourparam_table records for
+            one gene, except has_minus_one_peak, plus the geometry behind the
+            ratio:
 
-                   gene, y0, A, x0, w, sumsquarevalue,
-                   ti_fourparam_sigma_dist, truncationindex,
-                   min, max, right, maxheight, rightheight,
-                   n_obs, fit_success
+                gene, y0, A, x0, w, sumsquarevalue,
+                ti_fourparam_sigma_dist, truncationindex,
+                min, max, right, maxheight, rightheight,
+                n_obs, fit_success
 
-               truncationindex == rightheight / maxheight.
+            (truncationindex == rightheight / maxheight).
+
+            For ``"kde"`` — the detected modes of a Gaussian KDE:
+
+                gene, n_peaks, peaks, bw_method, n_obs, fit_success
+
+            where ``peaks`` is ``{expression_value: {"height", "prominence"}}``
+            (identical to ``gene_peaks`` / ``peaks.json``) and
+            ``n_peaks == len(peaks)``.
         """
         if model not in self._FIT_REGISTRY:
             raise ValueError(
                 f"Unknown model '{model}'. Supported: {list(self._FIT_REGISTRY)}"
             )
-        return getattr(self, self._FIT_REGISTRY[model])()
+        return getattr(self, self._FIT_REGISTRY[model])(**kwargs)
 
     # -- fourparam fit ---------------------------------------------------------
 
@@ -264,6 +293,61 @@ class BhuvanFitter:
             "rightheight": self.rightheight,
             "n_obs": int(self._data.size),
             "fit_success": True,
+        }
+
+    # -- kde fit ---------------------------------------------------------------
+
+    def _fit_kde(self, bw_method="silverman", min_prominence_frac=0.05,
+                 grid_size=1000, pad_frac=0.05):
+        """
+        Fit a Gaussian KDE to the gene's expression values (bin-independent) and
+        detect its modes by reusing the module-level ``gene_peaks`` — so the
+        peaks reported here match ``generate_peaks.py`` / ``peaks.json`` exactly.
+
+        The KDE density is also evaluated on the same padded grid and cached so
+        ``hist(lines=["kde"])`` can overlay the curve. If the KDE is singular
+        (e.g. zero-spread data) the density is left as None and ``fit_success``
+        is False, but peak detection still returns ``{}`` rather than raising.
+
+        Parameters mirror ``gene_peaks``: ``bw_method`` (KDE bandwidth),
+        ``min_prominence_frac`` (peak prominence threshold as a fraction of the
+        max density), ``grid_size`` and ``pad_frac`` (grid resolution / padding).
+        """
+        arr = self._data
+        lo, hi = float(arr.min()), float(arr.max())
+        pad = (hi - lo) * pad_frac
+        grid = np.linspace(lo - pad, hi + pad, grid_size)
+
+        try:
+            kde = gaussian_kde(arr, bw_method=bw_method)
+            density = kde(grid)
+            fit_ok = True
+        except np.linalg.LinAlgError:
+            kde, density, fit_ok = None, None, False
+
+        # Single source of truth for peak detection.
+        peaks = gene_peaks(
+            arr,
+            min_prominence_frac=min_prominence_frac,
+            bw_method=bw_method,
+            grid_size=grid_size,
+            pad_frac=pad_frac,
+        )
+
+        self.kde_object = kde
+        self.kde_grid = grid if fit_ok else None
+        self.kde_density = density
+        self.kde_peaks = peaks
+        self.kde_bw_method = bw_method
+        self.active_fits["kde"] = True
+
+        return {
+            "gene": self.gene_name,
+            "n_peaks": len(peaks),
+            "peaks": peaks,
+            "bw_method": bw_method,
+            "n_obs": int(arr.size),
+            "fit_success": fit_ok,
         }
 
     # -- Truncation-index metrics ----------------------------------------------
@@ -337,6 +421,16 @@ class BhuvanFitter:
             self.fourparam_x0, self.fourparam_w,
         )
 
+    def kde_function(self, x):
+        """Evaluate the fitted Gaussian KDE density at x."""
+        if not self.active_fits.get("kde"):
+            raise RuntimeError("kde fit has not been run.")
+        if self.kde_object is None:
+            raise RuntimeError(
+                f"kde fit did not converge for gene '{self.gene_name}'."
+            )
+        return self.kde_object(np.asarray(x, dtype=float))
+
     # -- Visualisation ---------------------------------------------------------
 
     def hist(self, lines=None):
@@ -382,6 +476,23 @@ class BhuvanFitter:
                     ax.plot(x_smooth, self.fourparam_function(x_smooth),
                             color="crimson", linewidth=2, label=label, zorder=3)
 
+                elif fit_name == "kde":
+                    if self.kde_object is None:
+                        print(f"Warning: 'kde' did not converge for "
+                              f"'{self.gene_name}' -- skipping.")
+                        continue
+                    # Scale the density (integrates to 1) onto the bin-count axis.
+                    scale = self._data.size * np.diff(self.hist_edges).mean()
+                    label = (
+                        f"Gaussian KDE (bw={self.kde_bw_method})\n"
+                        f"peaks={len(self.kde_peaks)}"
+                    )
+                    ax.plot(x_smooth, self.kde_function(x_smooth) * scale,
+                            color="darkgreen", linewidth=2, label=label, zorder=3)
+                    for peak_value, info in self.kde_peaks.items():
+                        ax.plot(peak_value, info["height"] * scale, "v",
+                                color="darkgreen", markersize=10, zorder=4)
+
         ax.set_title(self.gene_name, fontsize=14, fontweight="bold")
         ax.set_xlabel("Gene Expression Level", fontsize=12)
         ax.set_ylabel("Frequency (bin count)", fontsize=12)
@@ -406,5 +517,10 @@ class BhuvanFitter:
                 f"sumsquare={self.fourparam_sumsquare:.4g}\n"
                 f"  ti_fourparam_sigma_dist={self.ti_fourparam_sigma_dist:.4f}, "
                 f"truncationindex={self.truncationindex:.4f}"
+            )
+        if self.active_fits.get("kde"):
+            parts.append(
+                f"  kde(bw={self.kde_bw_method}): n_peaks={len(self.kde_peaks)}, "
+                f"peaks={sorted(self.kde_peaks)}"
             )
         return "\n".join(parts)
