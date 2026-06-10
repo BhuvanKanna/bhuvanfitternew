@@ -12,6 +12,10 @@ This repo (`BhuvanKanna/bhuvanfitternew`, private) is the centralized home for t
 
 Git LFS note: `Supplementary Data 1_csv.csv` (~64 MB) is tracked via **Git LFS** (see `.gitattributes`). Anyone cloning must run `git lfs install` once or the CSV will be a pointer stub. LFS lock-verify can intermittently time out on push; just retry the `git push`.
 
+## Keep this file current
+
+**As you make changes to this project, update `CLAUDE.md` in the same turn** so it always reflects the current architecture, file roles, commands, and the `BhuvanFitter` contract. Treat it as living documentation — when behavior, file layout, or the fit dict changes, adjust the relevant section here (and push it like any other change).
+
 ## Single source of truth
 
 `bhuvanfitter.py` holds the `_fourparam_gaussian` function and the `BhuvanFitter` class. **Both `newbhuvanfitter.ipynb` and `generate_fourparam_stats.py` import from it** — never redefine the class in either of those. Make all fitting-logic changes in `bhuvanfitter.py`.
