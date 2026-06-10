@@ -1,0 +1,337 @@
+# -*- coding: utf-8 -*-
+"""
+bhuvanfitter.py
+
+Core fitting library for the BhuvanFitter project: the module-level
+4-parameter Gaussian and the ``BhuvanFitter`` class. This is the single source
+of truth for the fitting logic — both ``newbhuvanfitter.ipynb`` and
+``generate_fourparam_stats.py`` import from here.
+
+Public API
+----------
+_fourparam_gaussian(x, y0, A, x0, w)   -- the model curve (module level so
+                                          scipy.optimize.curve_fit can use it)
+BhuvanFitter(data, gene_name, x_max)   -- fit + metrics + plotting for one gene
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+
+
+def _fourparam_gaussian(x, y0, A, x0, w):
+    """
+    4-parameter Gaussian model used by curve_fit.
+
+        y = y0 + A * exp(-((x - x0) / w)^2)
+
+    Defined at module level (not as a method) because scipy.optimize.curve_fit
+    requires a plain picklable callable.
+
+    Parameters
+    ----------
+    x  : array-like  Input x values.
+    y0 : float       Baseline offset.
+    A  : float       Amplitude (peak height above baseline).
+    x0 : float       Centre of the peak.
+    w  : float       Width parameter (w = sigma * sqrt(2)).
+    """
+    return y0 + A * np.exp(-((x - x0) / w) ** 2)
+
+
+class BhuvanFitter:
+    """
+    Fit a 4-parameter Gaussian to one gene's expression histogram and report
+    the fit parameters together with two truncation-index metrics.
+
+    The histogram is always computed with 40 bins. ``fit("fourparam")`` returns
+    a dict with everything ``compute_fourparam_table`` needs for one gene
+    (minus ``has_minus_one_peak``); ``hist(lines=["fourparam"])`` overlays the
+    fitted curve.
+
+    Parameters
+    ----------
+    data      : array-like   Expression values across strains for one gene.
+    gene_name : str          Name of the gene (used in plot titles and repr).
+    x_max     : float, optional
+        Truncation point used by the truncation-index metrics. Defaults to the
+        observed maximum of the data.
+    """
+
+    BINS = 40
+    _FIT_REGISTRY = {"fourparam": "_fit_fourparam"}
+
+    def __init__(self, data, gene_name: str, x_max=None):
+        self.gene_name = gene_name
+
+        arr = np.asarray(data, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        if arr.size == 0:
+            raise ValueError(f"No finite data values for gene '{gene_name}'.")
+        self._data = arr
+
+        self._x_max = float(x_max) if x_max is not None else float(arr.max())
+
+        counts, edges = np.histogram(arr, bins=self.BINS)
+        self.hist_counts = counts.astype(float)
+        self.hist_edges = edges
+        self.hist_centers = 0.5 * (edges[:-1] + edges[1:])
+
+        self.active_fits = {name: False for name in self._FIT_REGISTRY}
+
+        # fourparam result storage
+        self.fourparam_y0 = None
+        self.fourparam_A = None
+        self.fourparam_x0 = None
+        self.fourparam_w = None
+        self.fourparam_sumsquare = None
+
+    # -- Simple statistics -----------------------------------------------------
+
+    def min(self):
+        return float(self._data.min())
+
+    def max(self):
+        return float(self._data.max())
+
+    # -- Public dispatch -------------------------------------------------------
+
+    def fit(self, model: str) -> dict:
+        """
+        Run the requested fit and return its results as a dict.
+
+        Parameters
+        ----------
+        model : str   Currently only 'fourparam' is supported.
+
+        Returns
+        -------
+        dict   Everything compute_fourparam_table records for one gene, except
+               has_minus_one_peak, plus the geometry behind the ratio:
+
+                   gene, y0, A, x0, w, sumsquarevalue,
+                   ti_fourparam_sigma_dist, truncationindex,
+                   min, max, right, maxheight, rightheight,
+                   n_obs, fit_success
+
+               truncationindex == rightheight / maxheight.
+        """
+        if model not in self._FIT_REGISTRY:
+            raise ValueError(
+                f"Unknown model '{model}'. Supported: {list(self._FIT_REGISTRY)}"
+            )
+        return getattr(self, self._FIT_REGISTRY[model])()
+
+    # -- fourparam fit ---------------------------------------------------------
+
+    def _fit_fourparam(self) -> dict:
+        """
+        Fit the 4-parameter Gaussian to the histogram bin counts by ordinary
+        least squares (Trust Region Reflective), minimising the residual sum
+        of squares, then compute the truncation-index metrics.
+        """
+        x = self.hist_centers
+        y = self.hist_counts
+
+        # Initial guesses from the histogram shape.
+        y0_0 = float(y.min())
+        A_0 = float(y.max() - y0_0)
+        x0_0 = float(x[np.argmax(y)])
+
+        half_max = y0_0 + A_0 / 2.0
+        above = x[y >= half_max]
+        if len(above) > 1:
+            fwhm = float(above[-1] - above[0])
+            w_0 = fwhm / (2.0 * np.sqrt(np.log(2.0)))
+        else:
+            w_0 = float(np.std(self._data)) * np.sqrt(2.0)
+        w_0 = max(w_0, 1e-6)
+
+        p0 = [y0_0, A_0, x0_0, w_0]
+
+        try:
+            popt, _ = curve_fit(
+                _fourparam_gaussian,
+                x, y,
+                p0=p0,
+                bounds=([-np.inf, 0.0, -np.inf, 1e-6],
+                        [np.inf, np.inf, np.inf, np.inf]),
+                method="trf",          # ordinary least squares (linear loss)
+                max_nfev=10_000,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise RuntimeError(
+                f"fourparam fit failed for gene '{self.gene_name}': {exc}"
+            ) from exc
+
+        y0_fit, A_fit, x0_fit, w_fit = (float(p) for p in popt)
+        residuals = y - _fourparam_gaussian(x, *popt)
+        sumsquare = float(np.sum(residuals ** 2))
+
+        self.fourparam_y0 = y0_fit
+        self.fourparam_A = A_fit
+        self.fourparam_x0 = x0_fit
+        self.fourparam_w = w_fit
+        self.fourparam_sumsquare = sumsquare
+        self.active_fits["fourparam"] = True   # enables the metric properties below
+
+        return {
+            "gene": self.gene_name,
+            "y0": y0_fit,
+            "A": A_fit,
+            "x0": x0_fit,
+            "w": w_fit,
+            "sumsquarevalue": sumsquare,
+            "ti_fourparam_sigma_dist": self.ti_fourparam_sigma_dist,
+            "truncationindex": self.truncationindex,
+            "min": self.min(),
+            "max": self.max(),
+            "right": self._x_max,
+            "maxheight": self.maxheight,
+            "rightheight": self.rightheight,
+            "n_obs": int(self._data.size),
+            "fit_success": True,
+        }
+
+    # -- Truncation-index metrics ----------------------------------------------
+
+    @property
+    def ti_fourparam_sigma_dist(self):
+        """
+        sigma-distance truncation index:  (x_max - x0) / (w / sqrt(2)).
+
+        How many fitted sigmas x_max lies above the fitted peak x0.
+        Lower = ceiling closer to the peak = stronger truncation.
+        """
+        if not self.active_fits.get("fourparam"):
+            raise RuntimeError("fourparam fit has not been run. Call fit('fourparam') first.")
+        sigma_fp = self.fourparam_w / np.sqrt(2.0)
+        return float((self._x_max - self.fourparam_x0) / sigma_fp)
+
+    @property
+    def maxheight(self):
+        """
+        Peak height of the fitted curve above the f(min) baseline:
+        max of f(x) over the histogram range, minus f(min).
+        Denominator of the truncationindex ratio.
+        """
+        if not self.active_fits.get("fourparam"):
+            raise RuntimeError("fourparam fit has not been run. Call fit('fourparam') first.")
+        x_range = np.linspace(self.hist_edges[0], self.hist_edges[-1], 600)
+        baseline = self.fourparam_function(self.min())
+        return float(self.fourparam_function(x_range).max() - baseline)
+
+    @property
+    def rightheight(self):
+        """
+        Height of the fitted curve at the right ceiling x_max, above the
+        f(min) baseline:  f(x_max) - f(min).
+        Numerator of the truncationindex ratio.
+        """
+        if not self.active_fits.get("fourparam"):
+            raise RuntimeError("fourparam fit has not been run. Call fit('fourparam') first.")
+        baseline = self.fourparam_function(self.min())
+        return float(self.fourparam_function(self._x_max) - baseline)
+
+    @property
+    def truncationindex(self):
+        """
+        Height-ratio truncation index (formerly ti_fourparam_height_ratio):
+        rightheight / maxheight  ==  f(x_max)/f(peak) with the f(min) baseline
+        subtracted from both. Bounded [0, 1] for a well-behaved fit.
+        Higher = ceiling nearer the peak = stronger truncation.
+
+        Returns NaN for the degenerate case where maxheight == 0 (the fitted
+        peak sits at or left of the data minimum, so there is no height above
+        the baseline to form a ratio).
+        """
+        if not self.active_fits.get("fourparam"):
+            raise RuntimeError("fourparam fit has not been run. Call fit('fourparam') first.")
+        mh = self.maxheight
+        if mh == 0:
+            return float("nan")
+        return float(self.rightheight / mh)
+
+    # -- Evaluate fitted curve -------------------------------------------------
+
+    def fourparam_function(self, x):
+        """Evaluate the fitted 4-parameter Gaussian at x."""
+        if not self.active_fits.get("fourparam"):
+            raise RuntimeError("fourparam fit has not been run.")
+        return _fourparam_gaussian(
+            np.asarray(x, dtype=float),
+            self.fourparam_y0, self.fourparam_A,
+            self.fourparam_x0, self.fourparam_w,
+        )
+
+    # -- Visualisation ---------------------------------------------------------
+
+    def hist(self, lines=None):
+        """
+        Plot the 40-bin histogram and optionally overlay fitted curves.
+
+        Parameters
+        ----------
+        lines : list of str, optional
+            Fits to overlay, e.g. ['fourparam']. A fit is only drawn if it is
+            recognised and has already been run via ``fit``.
+        """
+        fig, ax = plt.subplots(figsize=(9, 5))
+
+        ax.bar(
+            self.hist_centers,
+            self.hist_counts,
+            width=np.diff(self.hist_edges).mean(),
+            color="steelblue", alpha=0.6,
+            label="Observed", zorder=2,
+        )
+
+        x_smooth = np.linspace(self.hist_edges[0], self.hist_edges[-1], 600)
+
+        if lines:
+            for fit_name in lines:
+                if fit_name not in self._FIT_REGISTRY:
+                    print(f"Warning: '{fit_name}' not recognised -- skipping.")
+                    continue
+                if not self.active_fits.get(fit_name):
+                    print(f"Warning: '{fit_name}' not fitted yet -- skipping.")
+                    continue
+
+                if fit_name == "fourparam":
+                    label = (
+                        f"4-param Gaussian (histogram fit)\n"
+                        f"A={self.fourparam_A:.3g}, x0={self.fourparam_x0:.3g}, "
+                        f"w={self.fourparam_w:.3g}, y0={self.fourparam_y0:.3g}\n"
+                        f"sumsquare={self.fourparam_sumsquare:.4g}\n"
+                        f"sigma_dist={self.ti_fourparam_sigma_dist:.4f}, "
+                        f"truncationindex={self.truncationindex:.4f}"
+                    )
+                    ax.plot(x_smooth, self.fourparam_function(x_smooth),
+                            color="crimson", linewidth=2, label=label, zorder=3)
+
+        ax.set_title(self.gene_name, fontsize=14, fontweight="bold")
+        ax.set_xlabel("Gene Expression Level", fontsize=12)
+        ax.set_ylabel("Frequency (bin count)", fontsize=12)
+        ax.legend(fontsize=9)
+        ax.grid(True, linestyle="--", alpha=0.4, zorder=1)
+        plt.tight_layout()
+        plt.show()
+        return ax
+
+    # -- Dunder ----------------------------------------------------------------
+
+    def __repr__(self):
+        active = [k for k, v in self.active_fits.items() if v]
+        parts = [
+            f"BhuvanFitter(gene='{self.gene_name}', n={len(self._data)}, "
+            f"active_fits={active})"
+        ]
+        if self.active_fits.get("fourparam"):
+            parts.append(
+                f"  y0={self.fourparam_y0:.3g}, A={self.fourparam_A:.3g}, "
+                f"x0={self.fourparam_x0:.3g}, w={self.fourparam_w:.3g}, "
+                f"sumsquare={self.fourparam_sumsquare:.4g}\n"
+                f"  ti_fourparam_sigma_dist={self.ti_fourparam_sigma_dist:.4f}, "
+                f"truncationindex={self.truncationindex:.4f}"
+            )
+        return "\n".join(parts)

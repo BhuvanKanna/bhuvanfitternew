@@ -6,9 +6,9 @@ Fit the 4-parameter Gaussian to every gene in ``Supplementary Data 1_csv.csv``,
 write the per-gene results to ``fourparam_table.csv``, and push that file to the
 GitHub repo.
 
-The ``BhuvanFitter`` class is loaded directly from ``newbhuvanfitter.ipynb`` so
-the fitting logic stays defined in a single place (the notebook). The output
-table has one row per gene with exactly the columns ``fit("fourparam")`` returns.
+The ``BhuvanFitter`` class is imported from ``bhuvanfitter.py``, the single
+source of truth for the fitting logic. The output table has one row per gene
+with exactly the columns ``fit("fourparam")`` returns.
 
 Usage
 -----
@@ -19,7 +19,6 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -27,8 +26,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from bhuvanfitter import BhuvanFitter
+
 HERE = Path(__file__).resolve().parent
-NOTEBOOK = HERE / "newbhuvanfitter.ipynb"
 INPUT_CSV = HERE / "Supplementary Data 1_csv.csv"
 OUTPUT_CSV = HERE / "fourparam_table.csv"
 
@@ -40,28 +40,6 @@ COLUMNS = [
     "n_obs", "fit_success",
 ]
 MIN_OBS = 10  # genes with fewer finite observations are not fit (matches the notebook)
-
-
-def load_bhuvanfitter(notebook_path: Path):
-    """
-    Exec the definitional code cells of the notebook (imports, the module-level
-    Gaussian, and the BhuvanFitter class) and return the BhuvanFitter class.
-
-    Only cells that define those objects are run, so example/usage cells in the
-    notebook are ignored.
-    """
-    nb = json.loads(notebook_path.read_text(encoding="utf-8"))
-    namespace: dict = {}
-    markers = ("import numpy", "def _fourparam_gaussian", "class BhuvanFitter")
-    for cell in nb.get("cells", []):
-        if cell.get("cell_type") != "code":
-            continue
-        src = "".join(cell.get("source", []))
-        if any(marker in src for marker in markers):
-            exec(compile(src, f"<{notebook_path.name}>", "exec"), namespace)
-    if "BhuvanFitter" not in namespace:
-        raise RuntimeError(f"BhuvanFitter class not found in {notebook_path}")
-    return namespace["BhuvanFitter"]
 
 
 def load_expression(csv_path: Path) -> pd.DataFrame:
@@ -140,9 +118,6 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None,
                         help="Only fit the first N genes (for quick testing).")
     args = parser.parse_args()
-
-    print(f"Loading BhuvanFitter from {NOTEBOOK.name} ...")
-    BhuvanFitter = load_bhuvanfitter(NOTEBOOK)
 
     print(f"Reading {INPUT_CSV.name} ...")
     df = load_expression(INPUT_CSV)
