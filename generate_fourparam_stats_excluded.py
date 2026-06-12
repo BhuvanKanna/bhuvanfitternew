@@ -3,13 +3,18 @@
 generate_fourparam_stats_excluded.py
 
 Identical to ``generate_fourparam_stats.py`` except each gene's expression
-array is first filtered to **drop any value <= -0.75** before fitting. Low
-expression values are treated as below-threshold and excluded, so the number of
-observations per gene may decrease (and a gene may drop below ``MIN_OBS``).
+array is first filtered to **drop any value <= EXCLUDE_AT_OR_BELOW** before
+fitting. Low expression values are treated as below-threshold and excluded, so
+the number of observations per gene may decrease (and a gene may drop below
+``MIN_OBS``).
 
 Fit the 4-parameter Gaussian to every (filtered) gene in
-``Supplementary Data 1_csv.csv``, write the per-gene results to
-``fourparam_table_excluded.csv``, and push that file to the GitHub repo.
+``Supplementary Data 1_csv.csv``, write the per-gene results to a CSV whose name
+**encodes the exclusion threshold** -- ``fourparam_table_excluded_at_or_below_<threshold>.csv``
+(e.g. ``fourparam_table_excluded_at_or_below_-1.csv``) -- and push that file to
+the GitHub repo. Because the output name is derived from ``EXCLUDE_AT_OR_BELOW``,
+changing the threshold automatically writes a separate, self-labeled spreadsheet
+instead of overwriting a differently-thresholded one.
 
 The ``BhuvanFitter`` class is imported from ``bhuvanfitter.py``, the single
 source of truth for the fitting logic. The output table has one row per gene
@@ -35,10 +40,13 @@ from generate_fourparam_stats import COLUMNS, MIN_OBS, load_expression, git_push
 
 HERE = Path(__file__).resolve().parent
 INPUT_CSV = HERE / "Supplementary Data 1_csv.csv"
-OUTPUT_CSV = HERE / "fourparam_table_excluded.csv"
 
 # Expression values at or below this threshold are excluded before fitting.
-EXCLUDE_AT_OR_BELOW = -0.75
+EXCLUDE_AT_OR_BELOW = -1
+
+# Output name encodes the threshold so each setting writes its own spreadsheet
+# (e.g. -1 -> fourparam_table_excluded_at_or_below_-1.csv).
+OUTPUT_CSV = HERE / f"fourparam_table_excluded_at_or_below_{EXCLUDE_AT_OR_BELOW}.csv"
 
 
 def build_table(df: pd.DataFrame, BhuvanFitter, limit: int | None = None) -> pd.DataFrame:
@@ -97,7 +105,7 @@ def main() -> None:
 
     git_push(
         HERE, OUTPUT_CSV,
-        "Update fourparam_table_excluded.csv (values <= -0.75 excluded before fit)",
+        f"Update {OUTPUT_CSV.name} (values <= {EXCLUDE_AT_OR_BELOW} excluded before fit)",
     )
 
 
