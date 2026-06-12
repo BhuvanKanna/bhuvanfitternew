@@ -22,9 +22,10 @@ with exactly the columns ``fit("fourparam")`` returns.
 
 Usage
 -----
-    python generate_fourparam_stats_excluded.py            # fit all genes, write CSV, push
-    python generate_fourparam_stats_excluded.py --no-push  # write CSV but skip the git push
-    python generate_fourparam_stats_excluded.py --limit 50 # only the first 50 genes (testing)
+    python generate_fourparam_stats_excluded.py                  # fit all genes (threshold -1), write CSV, push
+    python generate_fourparam_stats_excluded.py --no-push        # write CSV but skip the git push
+    python generate_fourparam_stats_excluded.py --limit 50       # only the first 50 genes (testing)
+    python generate_fourparam_stats_excluded.py --threshold -0.75  # use a different exclusion threshold
 """
 from __future__ import annotations
 
@@ -42,15 +43,25 @@ HERE = Path(__file__).resolve().parent
 INPUT_CSV = HERE / "Supplementary Data 1_csv.csv"
 
 # Expression values at or below this threshold are excluded before fitting.
+# This is the default; the --threshold CLI flag overrides it per run.
 EXCLUDE_AT_OR_BELOW = -1
 
-# Output name encodes the threshold so each setting writes its own spreadsheet
-# (e.g. -1 -> fourparam_table_excluded_at_or_below_-1.csv).
-OUTPUT_CSV = HERE / f"fourparam_table_excluded_at_or_below_{EXCLUDE_AT_OR_BELOW}.csv"
+
+def output_csv_for(threshold) -> Path:
+    """Output path whose name encodes the exclusion threshold, so each setting
+    writes its own spreadsheet (e.g. -1 -> fourparam_table_excluded_at_or_below_-1.csv,
+    -0.75 -> fourparam_table_excluded_at_or_below_-0.75.csv). ``:g`` keeps -1.0
+    rendered as ``-1`` so int and float thresholds map to the same name."""
+    return HERE / f"fourparam_table_excluded_at_or_below_{threshold:g}.csv"
 
 
-def build_table(df: pd.DataFrame, BhuvanFitter, limit: int | None = None) -> pd.DataFrame:
-    """Fit every gene (column) after dropping values <= EXCLUDE_AT_OR_BELOW."""
+# Default output (threshold = EXCLUDE_AT_OR_BELOW); --threshold overrides it.
+OUTPUT_CSV = output_csv_for(EXCLUDE_AT_OR_BELOW)
+
+
+def build_table(df: pd.DataFrame, BhuvanFitter, limit: int | None = None,
+                exclude_at_or_below: float = EXCLUDE_AT_OR_BELOW) -> pd.DataFrame:
+    """Fit every gene (column) after dropping values <= exclude_at_or_below."""
     genes = list(df.columns)
     if limit is not None:
         genes = genes[:limit]
@@ -60,7 +71,7 @@ def build_table(df: pd.DataFrame, BhuvanFitter, limit: int | None = None) -> pd.
     for i, gene in enumerate(genes, 1):
         data = df[gene].astype(float).values
         data = data[np.isfinite(data)]
-        data = data[data > EXCLUDE_AT_OR_BELOW]  # drop low/below-threshold expression
+        data = data[data > exclude_at_or_below]  # drop low/below-threshold expression
         n_obs = int(data.size)
 
         if n_obs < MIN_OBS:
@@ -85,27 +96,34 @@ def main() -> None:
                         help="Write the CSV but do not commit/push to GitHub.")
     parser.add_argument("--limit", type=int, default=None,
                         help="Only fit the first N genes (for quick testing).")
+    parser.add_argument("--threshold", type=float, default=EXCLUDE_AT_OR_BELOW,
+                        help="Exclude expression values <= this threshold before "
+                             "fitting (default: %(default)s). The output filename "
+                             "encodes it: fourparam_table_excluded_at_or_below_<threshold>.csv.")
     args = parser.parse_args()
+
+    threshold = args.threshold
+    output_csv = output_csv_for(threshold)
 
     print(f"Reading {INPUT_CSV.name} ...")
     df = load_expression(INPUT_CSV)
     print(f"  {df.shape[1]} genes x {df.shape[0]} strains")
 
-    print(f"Fitting genes (excluding values <= {EXCLUDE_AT_OR_BELOW}) ...")
-    table = build_table(df, BhuvanFitter, limit=args.limit)
+    print(f"Fitting genes (excluding values <= {threshold:g}) ...")
+    table = build_table(df, BhuvanFitter, limit=args.limit, exclude_at_or_below=threshold)
     n_ok = int(table["fit_success"].sum())
     print(f"  {n_ok}/{len(table)} genes fit successfully")
 
-    table.to_csv(OUTPUT_CSV, index=False)
-    print(f"Wrote {OUTPUT_CSV.name} ({len(table)} rows, {len(COLUMNS)} columns)")
+    table.to_csv(output_csv, index=False)
+    print(f"Wrote {output_csv.name} ({len(table)} rows, {len(COLUMNS)} columns)")
 
     if args.no_push:
         print("--no-push set; skipping git push.")
         return
 
     git_push(
-        HERE, OUTPUT_CSV,
-        f"Update {OUTPUT_CSV.name} (values <= {EXCLUDE_AT_OR_BELOW} excluded before fit)",
+        HERE, output_csv,
+        f"Update {output_csv.name} (values <= {threshold:g} excluded before fit)",
     )
 
 

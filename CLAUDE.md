@@ -106,13 +106,18 @@ python generate_fourparam_stats.py --limit 50 --no-push
 # Generate the full table locally without pushing
 python generate_fourparam_stats.py --no-push
 
+# Excluded variant: default threshold -1, or override per run (filename encodes it)
+python generate_fourparam_stats_excluded.py                    # -> ..._at_or_below_-1.csv (push)
+python generate_fourparam_stats_excluded.py --threshold -0.75  # -> ..._at_or_below_-0.75.csv
+python generate_fourparam_stats_excluded.py --limit 50 --no-push
+
 # Peak dictionary — same flags (all genes + push / sanity subset / local only)
 python generate_peaks.py
 python generate_peaks.py --limit 50 --no-push
 python generate_peaks.py --no-push
 ```
 
-Both generators take `--limit N` and `--no-push`. After a `--limit` run the output file (`fourparam_table.csv` or `peaks.json`) holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything.
+All generators take `--limit N` and `--no-push`; `generate_fourparam_stats_excluded.py` additionally takes `--threshold T` (default `-1`) which sets the exclusion cutoff **and** the output filename (`fourparam_table_excluded_at_or_below_<T>.csv`). After a `--limit` run the output file holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything. To regenerate several thresholds at once, run each with `--no-push` (distinct output files, no git race) and make one commit.
 
 The notebook (`newbhuvanfitter.ipynb`) is just `from bhuvanfitter import BhuvanFitter, gene_peaks` plus a synthetic single-gene example — use it for interactive inspection of one gene's `fit("fourparam")` / `fit("kde")` and the `hist(lines=["fourparam", "kde"])` overlay.
 

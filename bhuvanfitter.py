@@ -423,7 +423,11 @@ class BhuvanFitter:
         mh = self.maxheight
         if mh == 0:
             return float("nan")
-        return float(self.rightheight / mh)
+        ratio = self.rightheight / mh
+        # The ratio is mathematically in [0, 1]; clamp away floating-point noise
+        # (e.g. ~-1e-17 when the ceiling coincides with the curve minimum) so the
+        # documented bound holds exactly.
+        return float(min(1.0, max(0.0, ratio)))
 
     # -- Evaluate fitted curve -------------------------------------------------
 
