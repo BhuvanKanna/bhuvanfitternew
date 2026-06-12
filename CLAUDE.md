@@ -119,7 +119,9 @@ python generate_peaks.py --no-push
 
 All generators take `--limit N` and `--no-push`; `generate_fourparam_stats_excluded.py` additionally takes `--threshold T` (default `-1`) which sets the exclusion cutoff **and** the output filename (`fourparam_table_excluded_at_or_below_<T>.csv`). After a `--limit` run the output file holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything. To regenerate several thresholds at once, run each with `--no-push` (distinct output files, no git race) and make one commit.
 
-The notebook (`newbhuvanfitter.ipynb`) is just `from bhuvanfitter import BhuvanFitter, gene_peaks` plus a synthetic single-gene example — use it for interactive inspection of one gene's `fit("fourparam")` / `fit("kde")` and the `hist(lines=["fourparam", "kde"])` overlay.
+The notebook (`newbhuvanfitter.ipynb`) is the interactive scratch space (`from bhuvanfitter import BhuvanFitter, gene_peaks`). It does two things:
+- **Per-gene inspection** — build a `BhuvanFitter` on one column of `master` (the transposed `Supplementary Data 1_csv.csv`) and view its `fit("fourparam")` / `fit("kde")` and the `hist(lines=["fourparam", "kde"])` overlay.
+- **Cross-gene distribution plots** — it loads `fourparam_table_excluded_at_or_below_-1.csv` into `fourparam_df` and defines two helpers for histogramming any column across genes: `select(param)` applies the **single shared filter** (`fit_success == True` and `0 < truncationindex < 1`, NaNs dropped) and `plot_param_hist(param, *, color, bins, log)` draws the histogram (returning the data) and prints a filtering funnel — gene counts at each stage (master total → fourparam_df total → fit_success → NaN drop → truncationindex > 0 → < 1). Change the filter in one place (`select`) and both the sumsquarevalue and truncationindex plots follow.
 
 ## Other data files
 
