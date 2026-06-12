@@ -365,42 +365,58 @@ class BhuvanFitter:
         sigma_fp = self.fourparam_w / np.sqrt(2.0)
         return float((self._x_max - self.fourparam_x0) / sigma_fp)
 
+    # Grid resolution used when scanning the fitted curve over the histogram
+    # interval for its min / max.
+    _CURVE_GRID = 600
+
+    def _curve_baseline(self):
+        """
+        Baseline subtracted from both maxheight and rightheight: the **minimum
+        value the fitted curve attains over the histogram interval**
+        ``[hist_edges[0], hist_edges[-1]]``.
+
+        Using the curve's own interval-minimum (rather than f evaluated at the
+        data minimum) guarantees ``0 <= rightheight <= maxheight``, so the
+        truncationindex ratio is bounded to [0, 1].
+        """
+        x_range = np.linspace(self.hist_edges[0], self.hist_edges[-1], self._CURVE_GRID)
+        return float(self.fourparam_function(x_range).min())
+
     @property
     def maxheight(self):
         """
-        Peak height of the fitted curve above the f(min) baseline:
-        max of f(x) over the histogram range, minus f(min).
+        Full height of the fitted curve over the histogram interval, above the
+        curve's interval-minimum baseline:  max(f) - min(f).
         Denominator of the truncationindex ratio.
         """
         if not self.active_fits.get("fourparam"):
             raise RuntimeError("fourparam fit has not been run. Call fit('fourparam') first.")
-        x_range = np.linspace(self.hist_edges[0], self.hist_edges[-1], 600)
-        baseline = self.fourparam_function(self.min())
-        return float(self.fourparam_function(x_range).max() - baseline)
+        x_range = np.linspace(self.hist_edges[0], self.hist_edges[-1], self._CURVE_GRID)
+        return float(self.fourparam_function(x_range).max() - self._curve_baseline())
 
     @property
     def rightheight(self):
         """
         Height of the fitted curve at the right ceiling x_max, above the
-        f(min) baseline:  f(x_max) - f(min).
+        curve's interval-minimum baseline:  f(x_max) - min(f).
         Numerator of the truncationindex ratio.
         """
         if not self.active_fits.get("fourparam"):
             raise RuntimeError("fourparam fit has not been run. Call fit('fourparam') first.")
-        baseline = self.fourparam_function(self.min())
-        return float(self.fourparam_function(self._x_max) - baseline)
+        return float(self.fourparam_function(self._x_max) - self._curve_baseline())
 
     @property
     def truncationindex(self):
         """
         Height-ratio truncation index (formerly ti_fourparam_height_ratio):
-        rightheight / maxheight  ==  f(x_max)/f(peak) with the f(min) baseline
-        subtracted from both. Bounded [0, 1] for a well-behaved fit.
-        Higher = ceiling nearer the peak = stronger truncation.
+        rightheight / maxheight  ==  f(x_max)/f(peak) with the curve's
+        interval-minimum baseline min(f) subtracted from both. Because that
+        baseline is the curve's true minimum over the interval, the ratio is
+        **bounded to [0, 1]**: 0 = ceiling sits at the curve minimum, 1 =
+        ceiling sits at the peak. Higher = stronger truncation.
 
         Returns NaN for the degenerate case where maxheight == 0 (the fitted
-        peak sits at or left of the data minimum, so there is no height above
-        the baseline to form a ratio).
+        curve is flat over the interval, so there is no height to form a ratio).
         """
         if not self.active_fits.get("fourparam"):
             raise RuntimeError("fourparam fit has not been run. Call fit('fourparam') first.")

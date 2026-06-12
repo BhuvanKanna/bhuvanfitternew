@@ -64,7 +64,7 @@ Supplementary Data 1_csv.csv ──► generate_peaks.py ──► peaks.json
 - `x_max` (constructor arg, defaults to the data max) is the truncation ceiling used by the metrics.
 - Returns a 15-key dict:
   `gene, y0, A, x0, w, sumsquarevalue, ti_fourparam_sigma_dist, truncationindex, min, max, right, maxheight, rightheight, n_obs, fit_success`
-- `truncationindex` (the renamed height-ratio metric) `== rightheight / maxheight`, where `maxheight = f(peak) − f(min)` and `rightheight = f(x_max) − f(min)`. It returns **NaN** when `maxheight == 0` (degenerate fit whose peak sits at/left of the data minimum — common across the full gene set, so never assume it is finite).
+- `truncationindex` (the renamed height-ratio metric) `== rightheight / maxheight`, where the baseline subtracted from both is the **fitted curve's minimum over the histogram interval** (`_curve_baseline()`, i.e. `min(f)` on a 600-pt grid over `[hist_edges[0], hist_edges[-1]]`) — **not** `f(data min)`. So `maxheight = max(f) − min(f)` and `rightheight = f(x_max) − min(f)`. Because the baseline is the curve's true interval-minimum, the ratio is **bounded to [0, 1]** (0 = ceiling at the curve minimum, 1 = ceiling at the peak). It returns **NaN** only when `maxheight == 0` (the curve is flat over the interval). (An earlier version used `f(data min)` as the baseline, which left the ratio unbounded — values ranged to ±1e14 — so don't reintroduce that.)
 - Metric properties (`truncationindex`, `ti_fourparam_sigma_dist`, `maxheight`, `rightheight`) raise `RuntimeError` until `fit("fourparam")` has been called.
 
 **`fit("kde")`**
