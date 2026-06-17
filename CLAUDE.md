@@ -33,7 +33,7 @@ Supplementary Data 1_csv.csv          bhuvanfitter.py
         │  set_index('strain').T               │
         ▼  → 207 strains × 25,849 genes         ▼
   generate_fourparam_stats.py ── per gene ──► fourparam_table.csv
-        │   (build_table loops df.columns)      (25,849 rows, 15 cols)
+        │   (build_table loops df.columns)      (25,849 rows, 17 cols)
         └── commits + pushes the CSV to origin
 ```
 
@@ -64,8 +64,9 @@ Supplementary Data 1_csv.csv ──► generate_peaks.py ──► peaks.json
 **`fit("fourparam")`**
 - The fit uses `curve_fit(..., method="trf")` with **default linear loss = ordinary least squares**. This is deliberate: it genuinely minimizes the residual sum of squares. (An older Colab version used `loss="soft_l1"`, which is robust but does *not* minimize SSE — it yields different `x0/w` and therefore different metrics. Do not switch back unless intentionally matching that legacy output.)
 - `x_max` (constructor arg, defaults to the data max) is the truncation ceiling used by the metrics.
-- Returns a 15-key dict:
-  `gene, y0, A, x0, w, sumsquarevalue, ti_fourparam_sigma_dist, truncationindex, min, max, right, maxheight, rightheight, n_obs, fit_success`
+- Returns a 17-key dict:
+  `gene, y0, A, x0, w, sumsquarevalue, ti_fourparam_sigma_dist, truncationindex, min, max, mean, std, right, maxheight, rightheight, n_obs, fit_success`
+- `mean` and `std` are pure per-gene summary statistics of the finite values used for the fit (`mean = data.mean()`, `std` = **sample** standard deviation, `ddof=1`; NaN when `n_obs <= 1`). For the excluded variant they reflect the post-exclusion array. They sit alongside `min`/`max`/`n_obs` and do not depend on whether the fit converged (but a `fit_success=False` row still writes them as NaN, like every other metric).
 - `truncationindex` (the renamed height-ratio metric) `== rightheight / maxheight`, where the baseline subtracted from both is the **fitted curve's minimum over the histogram interval** (`_curve_baseline()`, i.e. `min(f)` on a 600-pt grid over `[hist_edges[0], hist_edges[-1]]`) — **not** `f(data min)`. So `maxheight = max(f) − min(f)` and `rightheight = f(x_max) − min(f)`. Because the baseline is the curve's true interval-minimum, the ratio is **bounded to [0, 1]** (0 = ceiling at the curve minimum, 1 = ceiling at the peak). It returns **NaN** only when `maxheight == 0` (the curve is flat over the interval). (An earlier version used `f(data min)` as the baseline, which left the ratio unbounded — values ranged to ±1e14 — so don't reintroduce that.)
 - Metric properties (`truncationindex`, `ti_fourparam_sigma_dist`, `maxheight`, `rightheight`) raise `RuntimeError` until `fit("fourparam")` has been called.
 

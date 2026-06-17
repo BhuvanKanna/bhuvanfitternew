@@ -181,6 +181,13 @@ class BhuvanFitter:
     def max(self):
         return float(self._data.max())
 
+    def mean(self):
+        return float(self._data.mean())
+
+    def std(self):
+        """Sample standard deviation (ddof=1) of the gene's finite values."""
+        return float(np.std(self._data, ddof=1)) if self._data.size > 1 else float("nan")
+
     # -- Public dispatch -------------------------------------------------------
 
     def fit(self, model: str, **kwargs) -> dict:
@@ -205,7 +212,7 @@ class BhuvanFitter:
 
                 gene, y0, A, x0, w, sumsquarevalue,
                 ti_fourparam_sigma_dist, truncationindex,
-                min, max, right, maxheight, rightheight,
+                min, max, mean, std, right, maxheight, rightheight,
                 n_obs, fit_success
 
             (truncationindex == rightheight / maxheight).
@@ -288,6 +295,8 @@ class BhuvanFitter:
             "truncationindex": self.truncationindex,
             "min": self.min(),
             "max": self.max(),
+            "mean": self.mean(),
+            "std": self.std(),
             "right": self._x_max,
             "maxheight": self.maxheight,
             "rightheight": self.rightheight,
