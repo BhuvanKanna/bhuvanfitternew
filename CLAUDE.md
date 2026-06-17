@@ -94,7 +94,7 @@ peak. Unrecognised / not-yet-run / non-converged fits are skipped with a warning
 
 ## Commands
 
-There is no build system, linter, or test suite. Development is `python` scripts + the notebook. Requires `numpy`, `pandas`, `scipy`, `matplotlib`.
+There is no build system, linter, or test suite. Development is `python` scripts + the notebook. Requires `numpy`, `pandas`, `scipy`, `matplotlib` (plus `openpyxl` if you read `Supplementary Data 1 trunc 20250702.xlsx` via `pd.read_excel`).
 
 ```bash
 # Regenerate the full table from the CSV and push it to the repo (~25.8k genes)
@@ -119,9 +119,10 @@ python generate_peaks.py --no-push
 
 All generators take `--limit N` and `--no-push`; `generate_fourparam_stats_excluded.py` additionally takes `--threshold T` (default `-1`) which sets the exclusion cutoff **and** the output filename (`fourparam_table_excluded_at_or_below_<T>.csv`). After a `--limit` run the output file holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything. To regenerate several thresholds at once, run each with `--no-push` (distinct output files, no git race) and make one commit.
 
-The notebook (`newbhuvanfitter.ipynb`) is the interactive scratch space (`from bhuvanfitter import BhuvanFitter, gene_peaks`). It does two things:
+The notebook (`newbhuvanfitter.ipynb`) is the interactive scratch space (`from bhuvanfitter import BhuvanFitter, gene_peaks`). It does three things:
 - **Per-gene inspection** — build a `BhuvanFitter` on one column of `master` (the transposed `Supplementary Data 1_csv.csv`) and view its `fit("fourparam")` / `fit("kde")` and the `hist(lines=["fourparam", "kde"])` overlay.
 - **Cross-gene distribution plots** — it loads `fourparam_table_excluded_at_or_below_-1.csv` into `fourparam_df` and defines two helpers for histogramming any column across genes: `select(param)` applies the **single shared filter** (`fit_success == True` and `0 < truncationindex < 1`, NaNs dropped) and `plot_param_hist(param, *, color, bins, log)` draws the histogram (returning the data) and prints a filtering funnel — gene counts at each stage (master total → fourparam_df total → fit_success → NaN drop → truncationindex > 0 → < 1). Change the filter in one place (`select`) and both the sumsquarevalue and truncationindex plots follow.
+- **Per-strain expression summaries (filtered)** — the last two cells restrict `master` to the genes passing the **same filter** (`fit_success == True` and `0 < truncationindex < 1`, ~11k genes) via `filtered_master = master[fourparam_df.loc[filter_mask, 'gene']]`, then histogram the per-column **mean** (`filtered_master.mean(axis=0)`) and **standard deviation** (`filtered_master.std(axis=0)`) across the 207 isolates. The SD cell reuses `filtered_master` defined in the mean cell, so run them in order.
 
 ## Other data files
 
