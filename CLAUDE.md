@@ -18,6 +18,8 @@ Git LFS note: `Supplementary Data 1_csv.csv` (~64 MB) is tracked via **Git LFS**
 
 **As you make changes to this project, update `CLAUDE.md` in the same turn** so it always reflects the current architecture, file roles, commands, and the `BhuvanFitter` contract. Treat it as living documentation — when behavior, file layout, or the fit dict changes, adjust the relevant section here (and push it like any other change).
 
+**Do this automatically and proactively for every significant change — the user should not have to ask.** A significant change is anything that makes a section here stale: behavior/logic changes, new or removed files, fit-dict keys, notebook cells, new dependencies, or command/flag changes. After any non-trivial edit, check whether the relevant section is now out of date and, if so, fix it in the same commit/push.
+
 ## Single source of truth
 
 `bhuvanfitter.py` holds the analysis library: `_fourparam_gaussian`, the `BhuvanFitter` class, and `gene_peaks` (KDE peak detection). **The notebook and both generator scripts import from it** — never redefine these elsewhere. Make all analysis-logic changes in `bhuvanfitter.py`.
