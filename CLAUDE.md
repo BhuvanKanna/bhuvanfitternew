@@ -12,7 +12,7 @@ A small toolkit that analyzes per-gene expression distributions from a *C. elega
 
 This repo (`BhuvanKanna/bhuvanfitternew`, private) is the centralized home for the code **and** the data. **Commit and push every file you change to GitHub as soon as the work in a turn is finished — do this proactively, without being asked.** Do not batch changes for "later." Do not auto-push pre-existing working-tree changes you did not make yourself (e.g. a deletion of a file the user is actively editing) — surface those and confirm first.
 
-Git LFS note: `Supplementary Data 1_csv.csv` (~64 MB) is tracked via **Git LFS** (see `.gitattributes`). Anyone cloning must run `git lfs install` once or the CSV will be a pointer stub. LFS lock-verify can intermittently time out on push; just retry the `git push`.
+Git LFS note: the large source matrices — `Supplementary Data 1_csv.csv` (~64 MB, worm) and `cerebellumlog2.csv` (~203 MB, GTEx cerebellum) — are tracked via **Git LFS** (see `.gitattributes`). Anyone cloning must run `git lfs install` once or these CSVs will be pointer stubs. LFS lock-verify can intermittently time out on push; just retry the `git push`. (The generated per-gene tables, e.g. `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`, are committed as normal files.)
 
 ## Keep this file current
 
