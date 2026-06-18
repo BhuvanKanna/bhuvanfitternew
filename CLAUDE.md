@@ -39,8 +39,11 @@ Supplementary Data 1_csv.csv          bhuvanfitter.py
 
 - Genes with `< 10` finite observations, or whose `curve_fit` fails to converge, are written as a row with `fit_success=False` and NaN metrics rather than skipped or crashing.
 - `generate_fourparam_stats.py` has a module-level `COLUMNS` list that **must stay identical to the keys `BhuvanFitter.fit("fourparam")` returns** (same names, same order). If you add/rename a key in the fit dict, update `COLUMNS`.
+- `load_expression(csv_path, id_col="strain", drop_cols=())` is the shared loader (genes as rows → transposed to samples × genes). It is **dataset-agnostic**: `id_col` names the gene-identifier column (the worm file's first column is mislabeled `strain` but holds gene names; GTEx uses `Name`) and `drop_cols` discards extra non-sample index columns (e.g. GTEx's `Description`). Defaults reproduce the original worm behaviour exactly.
 
-A near-identical variant, `generate_fourparam_stats_excluded.py`, fits the same 4-parameter Gaussian but **drops every expression value `<= EXCLUDE_AT_OR_BELOW`** (currently `-1`) from each gene's array before fitting (so `n_obs` shrinks and a gene can fall below `MIN_OBS`). It imports `COLUMNS`, `MIN_OBS`, `load_expression`, `git_push`, and `_failed_row` from `generate_fourparam_stats.py` (single source of truth — only `build_table`, the threshold constant `EXCLUDE_AT_OR_BELOW`, and output naming differ). **The output filename encodes the threshold** — `OUTPUT_CSV = HERE / f"fourparam_table_excluded_at_or_below_{EXCLUDE_AT_OR_BELOW}.csv"` (and the commit message is likewise threshold-derived) — so changing `EXCLUDE_AT_OR_BELOW` writes/pushes a *separate*, self-labeled spreadsheet (e.g. `fourparam_table_excluded_at_or_below_-1.csv`) instead of overwriting a differently-thresholded one. Same `--limit` / `--no-push` flags. The earlier `-0.75` run is preserved as `fourparam_table_excluded_at_or_below_-0.75.csv` (regenerate by setting `EXCLUDE_AT_OR_BELOW = -0.75`).
+A near-identical variant, `generate_fourparam_stats_excluded.py`, fits the same 4-parameter Gaussian but **drops every expression value `<= EXCLUDE_AT_OR_BELOW`** (default `-1`) from each gene's array before fitting (so `n_obs` shrinks and a gene can fall below `MIN_OBS`). It imports `COLUMNS`, `MIN_OBS`, `load_expression`, `git_push`, and `_failed_row` from `generate_fourparam_stats.py` (single source of truth — only `build_table` / the parallel worker, the threshold constant `EXCLUDE_AT_OR_BELOW`, and output naming differ). **The output filename encodes the threshold** (and, for a non-default `--input`, the input stem) via `output_csv_for(threshold, input_path)`: the default worm input keeps the legacy name `fourparam_table_excluded_at_or_below_<threshold>.csv` (so existing references and the notebook keep working), while any other dataset is prefixed with its file stem (e.g. `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`) so datasets never collide. The earlier worm `-0.75` run is preserved as `fourparam_table_excluded_at_or_below_-0.75.csv`.
+
+  - **Flags:** `--threshold T` (exclusion cutoff, default `-1`), `--limit N`, `--no-push`, plus `--input PATH` / `--id-col COL` / `--drop-col COL` (repeatable) for targeting other datasets through the generalized `load_expression`, and **`--jobs N`** (parallel worker processes; genes are independent so this scales near-linearly) and **`--max-nfev N`** (curve_fit cap, forwarded to `fit("fourparam")`). Parallelism uses a `multiprocessing.Pool` whose workers cache the threshold / `max_nfev` via `_init_worker`; the module-level `_fit_one((gene, values))` worker is picklable and `imap` preserves input order, so a parallel run is **bit-identical** to `--jobs 1`. The GTEx cerebellum table was generated with `--input cerebellumlog2.csv --id-col Name --drop-col Description --threshold -1 --jobs 11 --max-nfev 2000`.
 
 A parallel pipeline produces the peak dictionary:
 
@@ -58,12 +61,13 @@ Supplementary Data 1_csv.csv ──► generate_peaks.py ──► peaks.json
   `fit(model, **kwargs)`: **`"fourparam"`** and **`"kde"`**. `active_fits` tracks
   which have run; each fit sets its flag, and `hist(lines=[...])` only draws fits
   that have been run. `**kwargs` are forwarded to the chosen fit method
-  (`fourparam` takes none; `kde` takes the `gene_peaks` knobs).
+  (`fourparam` takes `max_nfev`; `kde` takes the `gene_peaks` knobs).
 - Histogram is **always 40 bins** (`BhuvanFitter.BINS`).
 
 **`fit("fourparam")`**
 - The fit uses `curve_fit(..., method="trf")` with **default linear loss = ordinary least squares**. This is deliberate: it genuinely minimizes the residual sum of squares. (An older Colab version used `loss="soft_l1"`, which is robust but does *not* minimize SSE — it yields different `x0/w` and therefore different metrics. Do not switch back unless intentionally matching that legacy output.)
 - `x_max` (constructor arg, defaults to the data max) is the truncation ceiling used by the metrics.
+- `fit("fourparam", max_nfev=...)` caps the curve_fit function evaluations (default `10_000`). Genuine fits converge well under it; lowering it (e.g. `2000`) mainly cuts wasted effort on non-converging genes — which otherwise burn the whole budget before raising — at the small risk of flipping a slow-converging gene to `fit_success=False`. The generators expose it via `--max-nfev`.
 - Returns a 17-key dict:
   `gene, y0, A, x0, w, sumsquarevalue, ti_fourparam_sigma_dist, truncationindex, min, max, mean, std, right, maxheight, rightheight, n_obs, fit_success`
 - `mean` and `std` are pure per-gene summary statistics of the finite values used for the fit (`mean = data.mean()`, `std` = **sample** standard deviation, `ddof=1`; NaN when `n_obs <= 1`). For the excluded variant they reflect the post-exclusion array. They sit alongside `min`/`max`/`n_obs` and do not depend on whether the fit converged (but a `fit_success=False` row still writes them as NaN, like every other metric).
@@ -114,13 +118,18 @@ python generate_fourparam_stats_excluded.py                    # -> ..._at_or_be
 python generate_fourparam_stats_excluded.py --threshold -0.75  # -> ..._at_or_below_-0.75.csv
 python generate_fourparam_stats_excluded.py --limit 50 --no-push
 
+# Excluded variant on another dataset (GTEx cerebellum), parallel + lower curve_fit cap
+python generate_fourparam_stats_excluded.py --input cerebellumlog2.csv \
+    --id-col Name --drop-col Description --threshold -1 --jobs 11 --max-nfev 2000 --no-push
+    # -> cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv
+
 # Peak dictionary — same flags (all genes + push / sanity subset / local only)
 python generate_peaks.py
 python generate_peaks.py --limit 50 --no-push
 python generate_peaks.py --no-push
 ```
 
-All generators take `--limit N` and `--no-push`; `generate_fourparam_stats_excluded.py` additionally takes `--threshold T` (default `-1`) which sets the exclusion cutoff **and** the output filename (`fourparam_table_excluded_at_or_below_<T>.csv`). After a `--limit` run the output file holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything. To regenerate several thresholds at once, run each with `--no-push` (distinct output files, no git race) and make one commit.
+All generators take `--limit N` and `--no-push`; `generate_fourparam_stats_excluded.py` additionally takes `--threshold T` (default `-1`, sets the exclusion cutoff **and** the output filename), `--input` / `--id-col` / `--drop-col` (target another dataset), and `--jobs N` / `--max-nfev N` (parallelism and the curve_fit cap). After a `--limit` run the output file holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything. To regenerate several thresholds at once, run each with `--no-push` (distinct output files, no git race) and make one commit.
 
 The notebook (`newbhuvanfitter.ipynb`) is the interactive scratch space (`from bhuvanfitter import BhuvanFitter, gene_peaks`). It does three things:
 - **Per-gene inspection** — build a `BhuvanFitter` on one column of `master` (the transposed `Supplementary Data 1_csv.csv`) and view its `fit("fourparam")` / `fit("kde")` and the `hist(lines=["fourparam", "kde"])` overlay.

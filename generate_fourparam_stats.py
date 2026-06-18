@@ -42,14 +42,34 @@ COLUMNS = [
 MIN_OBS = 10  # genes with fewer finite observations are not fit (matches the notebook)
 
 
-def load_expression(csv_path: Path) -> pd.DataFrame:
+def load_expression(csv_path: Path, id_col: str = "strain",
+                    drop_cols=()) -> pd.DataFrame:
     """
-    Load the expression matrix and orient it as rows = strains, columns = genes
+    Load an expression matrix and orient it as rows = samples, columns = genes
     (the input format BhuvanFitter expects), mirroring the notebook's loader.
+
+    The input file is expected to have one row per gene: ``id_col`` is the
+    gene-identifier column (its values become the gene/column labels after the
+    transpose) and the remaining columns are samples. ``drop_cols`` lists any
+    extra non-sample index columns to discard first (e.g. a ``Description``
+    column alongside a ``Name`` id column).
+
+    Parameters
+    ----------
+    csv_path : Path
+        CSV with genes as rows.
+    id_col : str
+        Column holding the gene identifier. Defaults to ``"strain"`` (the worm
+        Supplementary Data 1 layout, whose first column is mislabeled ``strain``
+        but actually holds gene names).
+    drop_cols : iterable of str
+        Additional columns to drop before transposing (non-sample metadata).
     """
     df = pd.read_csv(csv_path)
-    df = df.set_index("strain")
-    df = df.T  # rows = strains (isolates), columns = genes
+    if drop_cols:
+        df = df.drop(columns=list(drop_cols))
+    df = df.set_index(id_col)
+    df = df.T  # rows = samples, columns = genes
     return df
 
 

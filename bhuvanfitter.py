@@ -200,7 +200,8 @@ class BhuvanFitter:
             'fourparam' or 'kde'.
         **kwargs
             Extra keyword arguments forwarded to the chosen fit. 'fourparam'
-            takes none; 'kde' accepts ``bw_method``, ``min_prominence_frac``,
+            accepts ``max_nfev`` (curve_fit evaluation cap, default 10000);
+            'kde' accepts ``bw_method``, ``min_prominence_frac``,
             ``grid_size`` and ``pad_frac`` (see ``_fit_kde`` / ``gene_peaks``).
 
         Returns
@@ -233,11 +234,17 @@ class BhuvanFitter:
 
     # -- fourparam fit ---------------------------------------------------------
 
-    def _fit_fourparam(self) -> dict:
+    def _fit_fourparam(self, max_nfev: int = 10_000) -> dict:
         """
         Fit the 4-parameter Gaussian to the histogram bin counts by ordinary
         least squares (Trust Region Reflective), minimising the residual sum
         of squares, then compute the truncation-index metrics.
+
+        ``max_nfev`` caps the curve_fit function evaluations. Genuine fits
+        converge well under the default; lowering it (e.g. 2000) mainly cuts
+        wasted effort on non-converging genes (which otherwise burn the whole
+        budget before raising), at the small risk of flipping a slow-converging
+        gene to ``fit_success=False``.
         """
         x = self.hist_centers
         y = self.hist_counts
@@ -266,7 +273,7 @@ class BhuvanFitter:
                 bounds=([-np.inf, 0.0, -np.inf, 1e-6],
                         [np.inf, np.inf, np.inf, np.inf]),
                 method="trf",          # ordinary least squares (linear loss)
-                max_nfev=10_000,
+                max_nfev=max_nfev,
             )
         except (RuntimeError, ValueError) as exc:
             raise RuntimeError(

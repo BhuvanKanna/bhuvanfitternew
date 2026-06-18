@@ -30,6 +30,8 @@ Usage
 from __future__ import annotations
 
 import argparse
+import multiprocessing as mp
+import os
 import sys
 from pathlib import Path
 
@@ -47,45 +49,87 @@ INPUT_CSV = HERE / "Supplementary Data 1_csv.csv"
 EXCLUDE_AT_OR_BELOW = -1
 
 
-def output_csv_for(threshold) -> Path:
+def output_csv_for(threshold, input_path: Path = INPUT_CSV) -> Path:
     """Output path whose name encodes the exclusion threshold, so each setting
     writes its own spreadsheet (e.g. -1 -> fourparam_table_excluded_at_or_below_-1.csv,
     -0.75 -> fourparam_table_excluded_at_or_below_-0.75.csv). ``:g`` keeps -1.0
-    rendered as ``-1`` so int and float thresholds map to the same name."""
-    return HERE / f"fourparam_table_excluded_at_or_below_{threshold:g}.csv"
+    rendered as ``-1`` so int and float thresholds map to the same name.
+
+    For the default worm input the legacy name (no dataset prefix) is preserved
+    so existing references / the notebook keep working; any other ``--input``
+    file gets its stem prefixed (e.g. cerebellumlog2 ->
+    cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv) so datasets never
+    collide."""
+    base = f"fourparam_table_excluded_at_or_below_{threshold:g}.csv"
+    if input_path.resolve() == INPUT_CSV.resolve():
+        return HERE / base
+    return HERE / f"{input_path.stem}_{base}"
 
 
 # Default output (threshold = EXCLUDE_AT_OR_BELOW); --threshold overrides it.
 OUTPUT_CSV = output_csv_for(EXCLUDE_AT_OR_BELOW)
 
 
+# Set in each worker process by _init_worker so _fit_one can read them without
+# re-pickling them per gene.
+_WORKER_THRESHOLD: float = EXCLUDE_AT_OR_BELOW
+_WORKER_MAX_NFEV: int = 10_000
+
+
+def _init_worker(exclude_at_or_below: float, max_nfev: int) -> None:
+    global _WORKER_THRESHOLD, _WORKER_MAX_NFEV
+    _WORKER_THRESHOLD = exclude_at_or_below
+    _WORKER_MAX_NFEV = max_nfev
+
+
+def _fit_one(item) -> dict:
+    """Fit a single gene given ``(gene_name, values_array)``. Module-level and
+    picklable so it can run in a multiprocessing pool. Drops values
+    <= the worker's threshold first; returns a ``_failed_row`` (never raises) on
+    too-few observations or a non-converging fit."""
+    gene, values = item
+    data = np.asarray(values, dtype=float)
+    data = data[np.isfinite(data)]
+    data = data[data > _WORKER_THRESHOLD]  # drop low/below-threshold expression
+    n_obs = int(data.size)
+
+    if n_obs < MIN_OBS:
+        return _failed_row(gene, n_obs)
+    try:
+        bf = BhuvanFitter(data, gene_name=gene)
+        return bf.fit("fourparam", max_nfev=_WORKER_MAX_NFEV)
+    except RuntimeError:
+        return _failed_row(gene, n_obs)
+
+
 def build_table(df: pd.DataFrame, BhuvanFitter, limit: int | None = None,
-                exclude_at_or_below: float = EXCLUDE_AT_OR_BELOW) -> pd.DataFrame:
-    """Fit every gene (column) after dropping values <= exclude_at_or_below."""
+                exclude_at_or_below: float = EXCLUDE_AT_OR_BELOW,
+                max_nfev: int = 10_000, jobs: int = 1) -> pd.DataFrame:
+    """Fit every gene (column) after dropping values <= exclude_at_or_below.
+
+    ``jobs`` worker processes fit genes in parallel (genes are independent);
+    ``jobs=1`` runs in-process. ``max_nfev`` caps each curve_fit."""
     genes = list(df.columns)
     if limit is not None:
         genes = genes[:limit]
+    total = len(genes)
+    # Stream (gene, values) pairs so we never materialise all arrays at once.
+    items = ((gene, df[gene].to_numpy(dtype=float)) for gene in genes)
 
     records = []
-    total = len(genes)
-    for i, gene in enumerate(genes, 1):
-        data = df[gene].astype(float).values
-        data = data[np.isfinite(data)]
-        data = data[data > exclude_at_or_below]  # drop low/below-threshold expression
-        n_obs = int(data.size)
-
-        if n_obs < MIN_OBS:
-            records.append(_failed_row(gene, n_obs))
-        else:
-            try:
-                bf = BhuvanFitter(data, gene_name=gene)
-                records.append(bf.fit("fourparam"))
-            except RuntimeError as exc:
-                print(f"  warn: fit failed for '{gene}': {exc}", file=sys.stderr)
-                records.append(_failed_row(gene, n_obs))
-
-        if i % 2000 == 0 or i == total:
-            print(f"  fit {i}/{total} genes")
+    if jobs <= 1:
+        _init_worker(exclude_at_or_below, max_nfev)
+        for i, gene in enumerate(genes, 1):
+            records.append(_fit_one((gene, df[gene].to_numpy(dtype=float))))
+            if i % 2000 == 0 or i == total:
+                print(f"  fit {i}/{total} genes", flush=True)
+    else:
+        with mp.Pool(jobs, initializer=_init_worker,
+                     initargs=(exclude_at_or_below, max_nfev)) as pool:
+            for i, rec in enumerate(pool.imap(_fit_one, items, chunksize=64), 1):
+                records.append(rec)
+                if i % 2000 == 0 or i == total:
+                    print(f"  fit {i}/{total} genes", flush=True)
 
     return pd.DataFrame.from_records(records, columns=COLUMNS)
 
@@ -100,17 +144,41 @@ def main() -> None:
                         help="Exclude expression values <= this threshold before "
                              "fitting (default: %(default)s). The output filename "
                              "encodes it: fourparam_table_excluded_at_or_below_<threshold>.csv.")
+    parser.add_argument("--input", type=Path, default=INPUT_CSV,
+                        help="Input CSV (genes as rows). Defaults to the worm "
+                             "Supplementary Data 1 file. A non-default input gets "
+                             "its stem prefixed onto the output filename.")
+    parser.add_argument("--id-col", type=str, default="strain",
+                        help="Gene-identifier column in the input (default: strain "
+                             "for the worm file; use e.g. Name for the GTEx data).")
+    parser.add_argument("--drop-col", action="append", default=[], dest="drop_cols",
+                        metavar="COL",
+                        help="Extra non-sample column to drop before transposing "
+                             "(repeatable, e.g. --drop-col Description).")
+    parser.add_argument("--jobs", type=int, default=1,
+                        help="Worker processes to fit genes in parallel (default: 1). "
+                             "Genes are independent, so this scales near-linearly; "
+                             "e.g. --jobs 11 on a 12-core machine.")
+    parser.add_argument("--max-nfev", type=int, default=10_000, dest="max_nfev",
+                        help="curve_fit evaluation cap per gene (default: 10000). "
+                             "Lowering it (e.g. 2000) mainly speeds up non-converging "
+                             "genes, which otherwise burn the whole budget.")
     args = parser.parse_args()
 
     threshold = args.threshold
-    output_csv = output_csv_for(threshold)
+    input_csv = args.input
+    output_csv = output_csv_for(threshold, input_csv)
 
-    print(f"Reading {INPUT_CSV.name} ...")
-    df = load_expression(INPUT_CSV)
-    print(f"  {df.shape[1]} genes x {df.shape[0]} strains")
+    print(f"Reading {input_csv.name} ...")
+    df = load_expression(input_csv, id_col=args.id_col, drop_cols=args.drop_cols)
+    print(f"  {df.shape[1]} genes x {df.shape[0]} samples")
 
-    print(f"Fitting genes (excluding values <= {threshold:g}) ...")
-    table = build_table(df, BhuvanFitter, limit=args.limit, exclude_at_or_below=threshold)
+    jobs = args.jobs if args.jobs > 0 else (os.cpu_count() or 1)
+    print(f"Fitting genes (excluding values <= {threshold:g}, "
+          f"max_nfev={args.max_nfev}, jobs={jobs}) ...")
+    table = build_table(df, BhuvanFitter, limit=args.limit,
+                        exclude_at_or_below=threshold,
+                        max_nfev=args.max_nfev, jobs=jobs)
     n_ok = int(table["fit_success"].sum())
     print(f"  {n_ok}/{len(table)} genes fit successfully")
 
