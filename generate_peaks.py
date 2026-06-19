@@ -2,7 +2,7 @@
 """
 generate_peaks.py
 
-Detect the KDE density peaks of every gene in ``Supplementary Data 1_csv.csv``,
+Detect the KDE density peaks of every gene in ``worm.csv``,
 build a nested dictionary of them, write it to ``peaks.json``, and push that file
 to the GitHub repo.
 
@@ -41,7 +41,7 @@ from bhuvanfitter import gene_peaks
 from generate_fourparam_stats import load_expression, git_push
 
 HERE = Path(__file__).resolve().parent
-INPUT_CSV = HERE / "Supplementary Data 1_csv.csv"
+INPUT_CSV = HERE / "worm.csv"
 OUTPUT_JSON = HERE / "peaks.json"
 
 
@@ -89,7 +89,7 @@ def main() -> None:
 
     git_push(
         HERE, OUTPUT_JSON,
-        "Update peaks.json (regenerated from Supplementary Data 1_csv.csv)",
+        "Update peaks.json (regenerated from worm.csv)",
     )
 
 

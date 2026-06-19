@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A small toolkit that analyzes per-gene expression distributions from a *C. elegans* natural-isolate dataset (`Supplementary Data 1_csv.csv`). It does two independent things, both per gene:
-- fits a **4-parameter Gaussian** + computes **truncation-index** metrics → `fourparam_table.csv`;
+A small toolkit that analyzes per-gene expression distributions from a *C. elegans* natural-isolate dataset (`worm.csv`). It does two independent things, both per gene:
+- fits a **4-parameter Gaussian** + computes **truncation-index** metrics → `worm_fourparam_table.csv`;
 - detects **KDE density peaks** (number / location / height / prominence) → `peaks.json`.
 
 ## Keeping the GitHub repo updated (important)
 
 This repo (`BhuvanKanna/bhuvanfitternew`, private) is the centralized home for the code **and** the data. **Commit and push every file you change to GitHub as soon as the work in a turn is finished — do this proactively, without being asked.** Do not batch changes for "later." Do not auto-push pre-existing working-tree changes you did not make yourself (e.g. a deletion of a file the user is actively editing) — surface those and confirm first.
 
-Git LFS note: the large source matrices — `Supplementary Data 1_csv.csv` (~64 MB, worm) and `cerebellumlog2.csv` (~203 MB, GTEx cerebellum) — are tracked via **Git LFS** (see `.gitattributes`). Anyone cloning must run `git lfs install` once or these CSVs will be pointer stubs. LFS lock-verify can intermittently time out on push; just retry the `git push`. (The generated per-gene tables, e.g. `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`, are committed as normal files.)
+Git LFS note: the large source matrices — `worm.csv` (~64 MB, worm; originally `Supplementary Data 1_csv.csv`) and `cerebellumlog2.csv` (~203 MB, GTEx cerebellum) — are tracked via **Git LFS** (see `.gitattributes`). Anyone cloning must run `git lfs install` once or these CSVs will be pointer stubs. LFS lock-verify can intermittently time out on push; just retry the `git push`. (The generated per-gene tables, e.g. `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`, are committed as normal files.)
 
 ## Keep this file current
 
@@ -27,12 +27,12 @@ Git LFS note: the large source matrices — `Supplementary Data 1_csv.csv` (~64 
 ## The pipeline (requires reading 3 files to see end-to-end)
 
 ```
-Supplementary Data 1_csv.csv          bhuvanfitter.py
+worm.csv                              bhuvanfitter.py
   (strain col + 207 isolate cols,       (BhuvanFitter.fit)
    25,849 gene rows)                           │
         │  set_index('strain').T               │
         ▼  → 207 strains × 25,849 genes         ▼
-  generate_fourparam_stats.py ── per gene ──► fourparam_table.csv
+  generate_fourparam_stats.py ── per gene ──► worm_fourparam_table.csv
         │   (build_table loops df.columns)      (25,849 rows, 17 cols)
         └── commits + pushes the CSV to origin
 ```
@@ -41,14 +41,14 @@ Supplementary Data 1_csv.csv          bhuvanfitter.py
 - `generate_fourparam_stats.py` has a module-level `COLUMNS` list that **must stay identical to the keys `BhuvanFitter.fit("fourparam")` returns** (same names, same order). If you add/rename a key in the fit dict, update `COLUMNS`.
 - `load_expression(csv_path, id_col="strain", drop_cols=())` is the shared loader (genes as rows → transposed to samples × genes). It is **dataset-agnostic**: `id_col` names the gene-identifier column (the worm file's first column is mislabeled `strain` but holds gene names; GTEx uses `Name`) and `drop_cols` discards extra non-sample index columns (e.g. GTEx's `Description`). Defaults reproduce the original worm behaviour exactly.
 
-A near-identical variant, `generate_fourparam_stats_excluded.py`, fits the same 4-parameter Gaussian but **drops every expression value `<= EXCLUDE_AT_OR_BELOW`** (default `-1`) from each gene's array before fitting (so `n_obs` shrinks and a gene can fall below `MIN_OBS`). It imports `COLUMNS`, `MIN_OBS`, `load_expression`, `git_push`, and `_failed_row` from `generate_fourparam_stats.py` (single source of truth — only `build_table` / the parallel worker, the threshold constant `EXCLUDE_AT_OR_BELOW`, and output naming differ). **The output filename encodes the threshold** (and, for a non-default `--input`, the input stem) via `output_csv_for(threshold, input_path)`: the default worm input keeps the legacy name `fourparam_table_excluded_at_or_below_<threshold>.csv` (so existing references and the notebook keep working), while any other dataset is prefixed with its file stem (e.g. `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`) so datasets never collide. The earlier worm `-0.75` run is preserved as `fourparam_table_excluded_at_or_below_-0.75.csv`.
+A near-identical variant, `generate_fourparam_stats_excluded.py`, fits the same 4-parameter Gaussian but **drops every expression value `<= EXCLUDE_AT_OR_BELOW`** (default `-1`) from each gene's array before fitting (so `n_obs` shrinks and a gene can fall below `MIN_OBS`). It imports `COLUMNS`, `MIN_OBS`, `load_expression`, `git_push`, and `_failed_row` from `generate_fourparam_stats.py` (single source of truth — only `build_table` / the parallel worker, the threshold constant `EXCLUDE_AT_OR_BELOW`, and output naming differ). **The output filename encodes the input dataset and the threshold** via `output_csv_for(threshold, input_path)` — `<input stem>_fourparam_table_excluded_at_or_below_<threshold>.csv` — so datasets never collide: worm → `worm_fourparam_table_excluded_at_or_below_-1.csv`, GTEx → `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`. The earlier worm `-0.75` run is preserved as `worm_fourparam_table_excluded_at_or_below_-0.75.csv`.
 
   - **Flags:** `--threshold T` (exclusion cutoff, default `-1`), `--limit N`, `--no-push`, plus `--input PATH` / `--id-col COL` / `--drop-col COL` (repeatable) for targeting other datasets through the generalized `load_expression`, and **`--jobs N`** (parallel worker processes; genes are independent so this scales near-linearly) and **`--max-nfev N`** (curve_fit cap, forwarded to `fit("fourparam")`). Parallelism uses a `multiprocessing.Pool` whose workers cache the threshold / `max_nfev` via `_init_worker`; the module-level `_fit_one((gene, values))` worker is picklable and `imap` preserves input order, so a parallel run is **bit-identical** to `--jobs 1`. The GTEx cerebellum table was generated with `--input cerebellumlog2.csv --id-col Name --drop-col Description --threshold -1 --jobs 11 --max-nfev 2000`.
 
 A parallel pipeline produces the peak dictionary:
 
 ```
-Supplementary Data 1_csv.csv ──► generate_peaks.py ──► peaks.json
+worm.csv ──► generate_peaks.py ──► peaks.json
    (load_expression, same loader)   (gene_peaks per col)   (pushed to origin)
 ```
 
@@ -114,8 +114,8 @@ python generate_fourparam_stats.py --limit 50 --no-push
 python generate_fourparam_stats.py --no-push
 
 # Excluded variant: default threshold -1, or override per run (filename encodes it)
-python generate_fourparam_stats_excluded.py                    # -> ..._at_or_below_-1.csv (push)
-python generate_fourparam_stats_excluded.py --threshold -0.75  # -> ..._at_or_below_-0.75.csv
+python generate_fourparam_stats_excluded.py                    # -> worm_..._at_or_below_-1.csv (push)
+python generate_fourparam_stats_excluded.py --threshold -0.75  # -> worm_..._at_or_below_-0.75.csv
 python generate_fourparam_stats_excluded.py --limit 50 --no-push
 
 # Excluded variant on another dataset (GTEx cerebellum), parallel + lower curve_fit cap
@@ -132,14 +132,15 @@ python generate_peaks.py --no-push
 All generators take `--limit N` and `--no-push`; `generate_fourparam_stats_excluded.py` additionally takes `--threshold T` (default `-1`, sets the exclusion cutoff **and** the output filename), `--input` / `--id-col` / `--drop-col` (target another dataset), and `--jobs N` / `--max-nfev N` (parallelism and the curve_fit cap). After a `--limit` run the output file holds only those genes; restore the committed full version with `git checkout -- <file>` before pushing anything. To regenerate several thresholds at once, run each with `--no-push` (distinct output files, no git race) and make one commit.
 
 There are **two parallel notebooks**, one per dataset, with identical structure — they differ only in the data sources they load (and the example gene):
-- **`wormbhuvanfitter.ipynb`** — the worm dataset (`Supplementary Data 1_csv.csv` → `master`, `fourparam_table_excluded_at_or_below_-1.csv` → `fourparam_df`). This is the original notebook (renamed from `newbhuvanfitter.ipynb`).
+- **`wormbhuvanfitter.ipynb`** — the worm dataset (`worm.csv` → `master`, `worm_fourparam_table_excluded_at_or_below_-1.csv` → `fourparam_df`). This is the original notebook (renamed from `newbhuvanfitter.ipynb`; the worm CSVs were renamed from `Supplementary Data 1_csv.csv` / `fourparam_table*`).
 - **`cerebellumbhuvanfitter.ipynb`** — the GTEx cerebellum dataset (`cerebellumlog2.csv`, loaded with `.drop(columns=['Description']).set_index('Name').T`, → `master`; `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv` → `fourparam_df`).
 
 Both are the interactive scratch space (`from bhuvanfitter import BhuvanFitter, gene_peaks`) and do three things. When you change one notebook's shared analysis structure, mirror it in the other:
 - **Per-gene inspection** — build a `BhuvanFitter` on one column of `master` (the transposed source CSV) and view its `fit("fourparam")` / `fit("kde")` and the `hist(lines=["fourparam", "kde"])` overlay.
 - **Cross-gene distribution plots** — it loads that dataset's excluded fourparam table into `fourparam_df` and defines two helpers for histogramming any column across genes: `select(param)` applies the **single shared filter** (`fit_success == True`, `0 < truncationindex < 1`, and `n_obs >= MIN_OBS`, NaNs dropped) and `plot_param_hist(param, *, color, bins, log)` draws the histogram (returning the data) and prints a filtering funnel — gene counts at each stage (master total → fourparam_df total → fit_success → NaN drop → truncationindex > 0 → < 1 → n_obs >= MIN_OBS). Change the filter in one place (`select`) and both the sumsquarevalue and truncationindex plots follow. **`MIN_OBS` is a notebook-level constant (default 30)** applied as an analysis-time floor on the table's `n_obs` column — the generator's own `MIN_OBS=10` is too low for a 4-param fit to a 40-bin histogram, and filtering here is identical to regenerating the table with a higher floor (a gene's fit is independent of `MIN_OBS` once `n_obs` clears it), so no regeneration is needed to tune it.
-- **Per-gene expression summaries (filtered)** — `plot_gene_stat_hist(stat, source='full', *, color, bins)` is a third shared helper (alongside `select` / `plot_param_hist`) that histograms, over the **same filtered genes** (`select('gene')`), a per-gene **mean** or **std** of expression. `source='full'` reduces `master` over **all** samples (incl. the −1 floor); `source='table'` instead plots the post-exclusion `fourparam_df[stat]` column (only `> −1` samples) — genuinely different numbers, so pair the mean/std calls with the **same `source`** if feeding the scatter. The last three cells are now `strain_avgs = plot_gene_stat_hist('mean')`, `strain_sds = plot_gene_stat_hist('std')` (both default `source='full'`, reproducing the prior hand-coded plots), plus the unchanged **mean-vs-SD scatter** (`strain_avgs` x, `strain_sds` y; aligned by gene index). Run them in order (the scatter reuses `strain_avgs` / `strain_sds`).
+- **Per-gene expression summaries (filtered)** — `plot_gene_stat_hist(stat, source='full', *, color, bins)` is a third shared helper (alongside `select` / `plot_param_hist`) that histograms, over the **same filtered genes** (`select('gene')`), a per-gene **mean** or **std** of expression. `source='full'` reduces `master` over **all** samples (incl. the −1 floor); `source='table'` instead plots the post-exclusion `fourparam_df[stat]` column (only `> −1` samples) — genuinely different numbers, so pair the mean/std calls with the **same `source`** if feeding the scatter. The last three cells are now `strain_avgs = plot_gene_stat_hist('mean')`, `strain_sds = plot_gene_stat_hist('std')`, plus the unchanged **mean-vs-SD scatter** (`strain_avgs` x, `strain_sds` y; aligned by gene index). Run them in order (the scatter reuses `strain_avgs` / `strain_sds`).
+- **Genes-of-interest truncation ranges (worm only)** — `wormbhuvanfitter.ipynb` has a final section that loads `genes_of_interest.json` (keys `mco_dev` / `mco_behavior` / `lof_dev` / `lof_behavior`, each a gene→transcript-ID map whose IDs match the table's `gene` column), builds **7 categories** (the 4 keys + deduped-union `mco_combined` / `lof_combined` / `all_combined`), and reports per-category `truncationindex` summaries (`n_requested`, `n_in_table`, `n_used`, min/max/mean/median) via `ti_ranges(apply_filter)` in **two cells**: one without the shared filter (any successfully-fit transcript) and one with it. Worm-specific (the transcript IDs are worm) — no cerebellum counterpart.
 
 ## Other data files
 
-`Supplementary Data 1 trunc 20250702.xlsx` (gene-name ↔ identifier mapping) and `genes_of_interest.json` (curated gene sets) are inputs for downstream gene-of-interest analysis; they are not consumed by `generate_fourparam_stats.py`.
+`Supplementary Data 1 trunc 20250702.xlsx` (gene-name ↔ identifier mapping) is an input for downstream gene-of-interest analysis. `genes_of_interest.json` (curated worm gene sets: `mco_dev` / `mco_behavior` / `lof_dev` / `lof_behavior`, each gene→transcript-ID) **is consumed by `wormbhuvanfitter.ipynb`'s final section** (truncation-index ranges per category). Neither is consumed by the generator scripts.

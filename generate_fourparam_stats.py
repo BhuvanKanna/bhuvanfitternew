@@ -2,8 +2,8 @@
 """
 generate_fourparam_stats.py
 
-Fit the 4-parameter Gaussian to every gene in ``Supplementary Data 1_csv.csv``,
-write the per-gene results to ``fourparam_table.csv``, and push that file to the
+Fit the 4-parameter Gaussian to every gene in ``worm.csv``,
+write the per-gene results to ``worm_fourparam_table.csv``, and push that file to the
 GitHub repo.
 
 The ``BhuvanFitter`` class is imported from ``bhuvanfitter.py``, the single
@@ -29,8 +29,8 @@ import pandas as pd
 from bhuvanfitter import BhuvanFitter
 
 HERE = Path(__file__).resolve().parent
-INPUT_CSV = HERE / "Supplementary Data 1_csv.csv"
-OUTPUT_CSV = HERE / "fourparam_table.csv"
+INPUT_CSV = HERE / "worm.csv"
+OUTPUT_CSV = HERE / "worm_fourparam_table.csv"
 
 # The exact columns returned by BhuvanFitter.fit("fourparam"), in order.
 COLUMNS = [
@@ -157,7 +157,7 @@ def main() -> None:
 
     git_push(
         HERE, OUTPUT_CSV,
-        "Update fourparam_table.csv (regenerated from Supplementary Data 1_csv.csv)",
+        "Update worm_fourparam_table.csv (regenerated from worm.csv)",
     )
 
 

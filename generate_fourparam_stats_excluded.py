@@ -8,13 +8,13 @@ fitting. Low expression values are treated as below-threshold and excluded, so
 the number of observations per gene may decrease (and a gene may drop below
 ``MIN_OBS``).
 
-Fit the 4-parameter Gaussian to every (filtered) gene in
-``Supplementary Data 1_csv.csv``, write the per-gene results to a CSV whose name
-**encodes the exclusion threshold** -- ``fourparam_table_excluded_at_or_below_<threshold>.csv``
-(e.g. ``fourparam_table_excluded_at_or_below_-1.csv``) -- and push that file to
-the GitHub repo. Because the output name is derived from ``EXCLUDE_AT_OR_BELOW``,
-changing the threshold automatically writes a separate, self-labeled spreadsheet
-instead of overwriting a differently-thresholded one.
+Fit the 4-parameter Gaussian to every (filtered) gene in ``worm.csv``, write the
+per-gene results to a CSV whose name **encodes the input dataset and the exclusion
+threshold** -- ``<input stem>_fourparam_table_excluded_at_or_below_<threshold>.csv``
+(e.g. ``worm_fourparam_table_excluded_at_or_below_-1.csv``) -- and push that file to
+the GitHub repo. Because the output name is derived from the input and
+``EXCLUDE_AT_OR_BELOW``, changing the threshold (or ``--input``) automatically writes
+a separate, self-labeled spreadsheet instead of overwriting another one.
 
 The ``BhuvanFitter`` class is imported from ``bhuvanfitter.py``, the single
 source of truth for the fitting logic. The output table has one row per gene
@@ -42,7 +42,7 @@ from bhuvanfitter import BhuvanFitter
 from generate_fourparam_stats import COLUMNS, MIN_OBS, load_expression, git_push, _failed_row
 
 HERE = Path(__file__).resolve().parent
-INPUT_CSV = HERE / "Supplementary Data 1_csv.csv"
+INPUT_CSV = HERE / "worm.csv"
 
 # Expression values at or below this threshold are excluded before fitting.
 # This is the default; the --threshold CLI flag overrides it per run.
@@ -50,20 +50,13 @@ EXCLUDE_AT_OR_BELOW = -1
 
 
 def output_csv_for(threshold, input_path: Path = INPUT_CSV) -> Path:
-    """Output path whose name encodes the exclusion threshold, so each setting
-    writes its own spreadsheet (e.g. -1 -> fourparam_table_excluded_at_or_below_-1.csv,
-    -0.75 -> fourparam_table_excluded_at_or_below_-0.75.csv). ``:g`` keeps -1.0
-    rendered as ``-1`` so int and float thresholds map to the same name.
-
-    For the default worm input the legacy name (no dataset prefix) is preserved
-    so existing references / the notebook keep working; any other ``--input``
-    file gets its stem prefixed (e.g. cerebellumlog2 ->
-    cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv) so datasets never
-    collide."""
-    base = f"fourparam_table_excluded_at_or_below_{threshold:g}.csv"
-    if input_path.resolve() == INPUT_CSV.resolve():
-        return HERE / base
-    return HERE / f"{input_path.stem}_{base}"
+    """Output path whose name encodes the **input dataset** and the exclusion
+    threshold, so each setting writes its own spreadsheet and datasets never
+    collide: ``<input stem>_fourparam_table_excluded_at_or_below_<threshold>.csv``
+    (e.g. worm -> worm_fourparam_table_excluded_at_or_below_-1.csv, cerebellumlog2
+    -> cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv). ``:g`` keeps
+    -1.0 rendered as ``-1`` so int and float thresholds map to the same name."""
+    return HERE / f"{input_path.stem}_fourparam_table_excluded_at_or_below_{threshold:g}.csv"
 
 
 # Default output (threshold = EXCLUDE_AT_OR_BELOW); --threshold overrides it.
