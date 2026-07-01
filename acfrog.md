@@ -238,6 +238,14 @@ phenotypes in our proposal.
 > and *K02C4.3*) are orthologous to paralogs in human. **B)** Which genes had mcOE, LF,
 > both, or no phenotypes: mcOE screen — 11 genes; LF screen — 13 genes; both — 11 genes;
 > no phenotype — 10 genes. (Nordquist et al., 2018; unpublished.)
+>
+> *Extracted from the table cells (used to define the OE groups in Fig. 3):*
+> **OE-sensitive (mcOE phenotype, 24):** chaf-2, cle-1, dip-2, dnsn-1, eva-1, pat-3, irk-2,
+> Y54E10A.11, mrps-6, ncam-1, F43G9.12, pdxk-1, pfk-1.1, rcan-1, rrp-1, nrd-1, Y105E8A.1,
+> hlh-34, sod-1, D1037.1, unc-26, Y74C10AL.2, trpp-10, K02C4.3.
+> **OE-tolerant (no mcOE, 23):** adr-2, atp-3, B0024.15, cbs-1, cct-8, D1086.9, H39E23.3,
+> igcm-1, mbk-1, F38B6.4, stc-1, itsn-1, zig-10, mrpl-39, mtq-2, pes-4, pad-2, ikb-1, rnt-1,
+> set-29, sod-5, ubc-14, wdr-4.
 
 *(Research Strategy — Page 37)*
 
@@ -251,10 +259,15 @@ phenotypes in our proposal.
 > `regenerate_acfrog_figures.py`. They **intentionally do not reproduce the strong
 > "expression ceiling" separation** drawn in the original proposal:
 >
-> - **Worm (Fig. 3):** OE-sensitive `mco` genes have only a slightly higher truncation
->   index than the genomic background (median 0.04 vs 0.04; mean 0.13 vs 0.10), with
->   **Mann-Whitney p ≈ 0.36 (not significant)** — versus the proposal's *p < 0.004*. Only
->   5 of 21 `mco` genes have a clear ceiling (TI > 0.3).
+> - **Worm (Fig. 3):** OE groups are taken from **Figure 2A** (mcOE-"Any" column = OE
+>   sensitive; no mcOE = OE tolerant), *not* from `genes_of_interest.json` — the json
+>   lacked the OE-tolerant no-phenotype genes that form the correct "absent" control. With
+>   the proper control, the qualitative pattern **does** appear as a **tail effect**:
+>   OE-tolerant genes are capped (max TI ≈ 0.30, 94% below 0.2) while OE-sensitive genes
+>   spread out to 0.60 (25% above 0.2). The center/median is similar for both, so
+>   Mann-Whitney is only **p ≈ 0.24 (n.s.)** — weaker than the proposal's *p < 0.004*
+>   (likely the older *unbounded* truncation-index metric or a per-gene test amplified it),
+>   but the direction and the tolerant-genes-are-capped result are real.
 > - **Cerebellum (Fig. 4):** the classic triplication genes (*APP*, *SOD1*, *SNCA*,
 >   *RCAN1*, *PCSK9*, *MECP2* …) come out as mid-range Gaussians with tapering right tails;
 >   their truncation indices are ≈ 0, consistent with the repo's own section-5 finding that
@@ -269,15 +282,17 @@ phenotypes in our proposal.
 
 ![Figure 3 (regenerated)](acfrog_figure3_worm.png)
 
-**A)** Overlaid 4-parameter Gaussian fits of natural expression level across wild
-*C. elegans*. Top row: Hsa21 orthologs (OE phenotype absent = LF-only genes, grey; OE
-phenotype present = `mco` OE-sensitive genes, red). Bottom row: genome-background
-transcripts split by low vs high truncation index. ★ marks genes with truncation index
-> 0.3. **B)** Truncation index (ratio of the truncated right side of the distribution to
-the peak) for background vs OE-present (`mco`) genes; horizontal bars = medians. **C)** Four
-example OE-sensitive genes (histogram + red Gaussian fit). **D)** Truncation-index density
-histograms for all transcripts (grey), OE phenotype absent (blue) and present (red).
-`Trunc = h_right / h_max`.
+OE-sensitive vs OE-tolerant status is read from **Figure 2A** (24 sensitive / 23 tolerant
+Hsa21 orthologs; the 3 merged human/worm rows resolve to *irk-2*, *rrp-1*, *K02C4.3*, all
+sensitive; *pad-1* = n.d.), mapped to fourparam-table transcript IDs via the Supplementary
+Data 1 gene↔transcript mapping. **A)** Overlaid 4-parameter Gaussian fits of natural
+expression level across wild *C. elegans* for Hsa21 orthologs: OE phenotype **present**
+(red, top; ★ = truncation index > 0.3) and **absent** (grey, bottom). **B)** Truncation
+index for OE-tolerant (absent) vs OE-sensitive (present) genes; horizontal bars = medians.
+**C)** Four example OE-sensitive genes (histogram + red Gaussian fit). **D)** Truncation-index
+histograms as per-bin fraction `p` (matching the original's axis) for all transcripts
+(grey), OE phenotype absent (blue) and present (red) — **the tolerant/blue curve is capped
+near TI ≈ 0.3 while the sensitive/red curve extends to 0.6.** `Trunc = h_right / h_max`.
 
 *Original caption (Fig. 3):* "All genes that exhibit expression ceilings caused OE
 phenotypes. A) Gaussian fits show distributions of natural expression level for genes

@@ -50,6 +50,60 @@ WORM_TABLE = "worm_fourparam_table_excluded_at_or_below_-1.csv"
 CEREB_CSV = "cerebellumlog2.csv"
 CEREB_TABLE = "cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv"
 GOI_JSON = "genes_of_interest.json"
+WORM_MAP_XLSX = "Supplementary Data 1 trunc 20250702.xlsx"
+
+# --- OE phenotype status, read from the proposal's Figure 2A -----------------
+# The mcOverexpression "Any" column of Fig 2A defines OE sensitivity (shaded =
+# mcOE phenotype present). These worm-gene lists were extracted from the vector
+# cells of Fig 2A in ACFROG~1.PDF (mcOE-Any = dark-grey fill). The three
+# merged human/worm rows resolve to single worm orthologs: KCNJ6/KCNJ15 -> irk-2,
+# RRP1/RRP1B -> rrp-1, USP25/USP16 -> K02C4.3 (all OE-sensitive); pad-1 = n.d.
+# (not overexpressed) and is excluded. This replaces the earlier reliance on
+# genes_of_interest.json, which lacked the OE-tolerant (no-phenotype) genes.
+SENS_GENES = [  # 24 OE-sensitive Hsa21 orthologs (mcOE phenotype present)
+    "chaf-2", "cle-1", "dip-2", "dnsn-1", "eva-1", "pat-3", "irk-2",
+    "Y54E10A.11", "mrps-6", "ncam-1", "F43G9.12", "pdxk-1", "pfk-1.1",
+    "rcan-1", "rrp-1", "nrd-1", "Y105E8A.1", "hlh-34", "sod-1", "D1037.1",
+    "unc-26", "Y74C10AL.2", "trpp-10", "K02C4.3",
+]
+TOL_GENES = [   # 23 OE-tolerant Hsa21 orthologs (no mcOE phenotype)
+    "adr-2", "atp-3", "B0024.15", "cbs-1", "cct-8", "D1086.9", "H39E23.3",
+    "igcm-1", "mbk-1", "F38B6.4", "stc-1", "itsn-1", "zig-10", "mrpl-39",
+    "mtq-2", "pes-4", "pad-2", "ikb-1", "rnt-1", "set-29", "sod-5",
+    "ubc-14", "wdr-4",
+]
+
+
+def build_worm_groups(table_index):
+    """
+    Resolve the Fig-2A worm gene names to fourparam-table transcript IDs
+    (``w{n}_{transcript}``) using the ``GeneName``/``transcript`` columns of the
+    Supplementary Data 1 mapping. Returns (sensitive_ids, tolerant_ids). Genes
+    absent from the dataset (hlh-34, sod-5, H39E23.3) simply drop out.
+    """
+    import re
+    xl = pd.read_excel(WORM_MAP_XLSX).dropna(subset=["transcript"])
+    xl["tid"] = ("w" + xl["wwww"].astype(int).astype(str) + "_"
+                 + xl["transcript"].astype(str))
+    xl["seqname"] = xl["transcript"].str.replace(r"\.\d+$", "", regex=True)
+    tabset = set(table_index)
+    by_name, by_seq = {}, {}
+    for _, r in xl.iterrows():
+        if r["tid"] not in tabset:
+            continue
+        by_name.setdefault(str(r["GeneName"]), []).append(r["tid"])
+        by_seq.setdefault(str(r["seqname"]), []).append(r["tid"])
+
+    def resolve(names):
+        out = []
+        for n in names:
+            ids = (by_name.get(n) or by_seq.get(n)
+                   or by_seq.get(re.sub(r"\.\d+$", "", n)))
+            if ids:
+                out += ids
+        return out
+
+    return resolve(SENS_GENES), resolve(TOL_GENES)
 
 
 # ---------------------------------------------------------------------------
@@ -83,33 +137,28 @@ def curve_xy(values, n=400):
 # ===========================================================================
 def figure3():
     table = pd.read_csv(WORM_TABLE).set_index("gene")
-    goi = json.load(open(GOI_JSON))
 
-    mco_ids, lof_ids = set(), set()
-    for k in ("mco_dev", "mco_behavior"):
-        for _g, ids in goi[k].items():
-            mco_ids.update(ids)
-    for k in ("lof_dev", "lof_behavior"):
-        for _g, ids in goi[k].items():
-            lof_ids.update(ids)
+    # OE phenotype groups come from Figure 2A (see build_worm_groups), NOT from
+    # genes_of_interest.json -- the json lacked the OE-tolerant (no-phenotype)
+    # genes that form the "absent" control, which is exactly what panel D needs.
+    sens_ids, tol_ids = build_worm_groups(table.index)
 
     vt = valid(table)
-    present = [i for i in mco_ids if i in vt.index]          # OE-sensitive
-    lof_only = [i for i in (lof_ids - mco_ids) if i in vt.index]
-    background = [i for i in vt.index if i not in mco_ids and i not in lof_ids]
+    present = [i for i in sens_ids if i in vt.index]   # OE-sensitive (Fig 2A)
+    absent = [i for i in tol_ids if i in vt.index]     # OE-tolerant  (Fig 2A)
 
     ti = vt["truncationindex"]
     ti_present = ti.loc[present]
-    ti_bg = ti.loc[background]
+    ti_absent = ti.loc[absent]
     ti_all = ti  # all valid transcripts
 
-    p_mwu = mannwhitneyu(ti_present, ti_bg, alternative="greater").pvalue
+    p_mwu = mannwhitneyu(ti_present, ti_absent, alternative="greater").pvalue
     STAR = 0.30  # a gene is "ceiling-like" if truncationindex exceeds this
 
     # load the worm expression matrix (genes as columns after transpose)
     master = pd.read_csv(WORM_CSV).set_index("strain").T
 
-    def draw_curves(ax, ids, color, star=False, title="", nmax=25):
+    def draw_curves(ax, ids, color, star=False, title="", nmax=30):
         ids = list(ids)[:nmax]
         for gid in ids:
             if gid not in master.columns:
@@ -133,37 +182,34 @@ def figure3():
     outer = gridspec.GridSpec(2, 3, width_ratios=[1.35, 0.75, 1.15],
                               height_ratios=[1, 1], wspace=0.32, hspace=0.42)
 
-    # ---- Panel A: 2x2 overlaid Gaussian fits ------------------------------
-    gsA = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=outer[:, 0],
-                                           wspace=0.38, hspace=0.5)
-    axA1 = fig.add_subplot(gsA[0, 0])
-    axA2 = fig.add_subplot(gsA[0, 1])
-    axA3 = fig.add_subplot(gsA[1, 0])
-    axA4 = fig.add_subplot(gsA[1, 1])
-    draw_curves(axA1, lof_only, "0.4", title="Hsa21 orthologs\nOE pheno absent")
-    draw_curves(axA2, present, "crimson", star=True,
-                title="Hsa21 orthologs\nOE pheno present")
-    bg_lo = ti_bg.sort_values().index[:25]
-    bg_hi = ti_bg.sort_values(ascending=False).index[:25]
-    draw_curves(axA3, bg_lo, "0.4", title="Other transcripts\n(low index)")
-    draw_curves(axA4, bg_hi, "crimson", star=True,
-                title="Other transcripts\n(high index)")
-    axA1.text(-0.28, 1.28, "A", transform=axA1.transAxes,
+    # ---- Panel A: overlaid Gaussian fits, Hsa21 orthologs -----------------
+    gsA = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=outer[:, 0],
+                                           hspace=0.4)
+    axA1 = fig.add_subplot(gsA[0])
+    axA2 = fig.add_subplot(gsA[1])
+    draw_curves(axA1, present, "crimson", star=True,
+                title="Hsa21 orthologs -- OE phenotype PRESENT (Fig 2A)\n"
+                      "(★ = truncation index > 0.3)")
+    draw_curves(axA2, absent, "0.4",
+                title="Hsa21 orthologs -- OE phenotype ABSENT (Fig 2A)")
+    axA1.text(-0.16, 1.2, "A", transform=axA1.transAxes,
               fontsize=15, fontweight="bold")
 
     # ---- Panel B: truncation index strip plot -----------------------------
     axB = fig.add_subplot(outer[:, 1])
-    for xpos, data, col in [(0, ti_bg, "0.4"), (1, ti_present, "crimson")]:
+    for xpos, data, col in [(0, ti_absent, "0.4"), (1, ti_present, "crimson")]:
         jit = xpos + (RNG.random(len(data)) - 0.5) * 0.35
-        axB.scatter(jit, data, s=10, color=col, alpha=0.35,
+        axB.scatter(jit, data, s=14, color=col, alpha=0.5,
                     edgecolors="none")
         axB.plot([xpos - 0.25, xpos + 0.25], [data.median()] * 2,
                  color="black", lw=2)
     axB.set_xticks([0, 1])
-    axB.set_xticklabels(["Absent\n(background)", "Present\n(mco)"], fontsize=8)
+    axB.set_xticklabels(["Absent\n(tolerant)", "Present\n(sensitive)"],
+                        fontsize=8)
     axB.set_ylabel("Truncation index", fontsize=9)
-    axB.set_ylim(0, 1)
-    axB.set_title(f"p = {p_mwu:.2f} (n.s.)", fontsize=9)
+    axB.set_ylim(0, 0.7)
+    sig = "n.s." if p_mwu >= 0.05 else "*"
+    axB.set_title(f"p = {p_mwu:.2f} ({sig})", fontsize=9)
     # label the top present genes
     for gid in ti_present.sort_values(ascending=False).index[:4]:
         axB.annotate(gid.split("_")[-1], (1.18, ti_present.loc[gid]),
@@ -192,30 +238,36 @@ def figure3():
         ax.tick_params(labelsize=6)
     fig.text(0.685, 0.94, "C", fontsize=15, fontweight="bold")
 
-    # ---- Panel D: normalized truncation-index histograms ------------------
+    # ---- Panel D: probability-normalized truncation-index histograms ------
+    # Matches the original panel's "p" axis (per-bin fraction, sums to 1),
+    # not a density (which blows up with narrow bins).
     axD = fig.add_subplot(outer[1, 2])
     bins = np.linspace(0, 1, 26)
-    axD.hist(ti_all, bins=bins, density=True, histtype="step",
-             color="0.5", lw=1.5, label="All transcripts")
-    axD.hist(ti_bg, bins=bins, density=True, histtype="step",
-             color="blue", lw=1.5, label="OE pheno absent")
-    axD.hist(ti_present, bins=bins, density=True, histtype="step",
-             color="red", lw=1.5, label="OE pheno present")
+
+    def prob_step(data, color, label):
+        w = np.ones(len(data)) / len(data)
+        axD.hist(data, bins=bins, weights=w, histtype="step",
+                 color=color, lw=1.6, label=f"{label} (n={len(data)})")
+
+    prob_step(ti_all, "0.5", "All transcripts")
+    prob_step(ti_absent, "blue", "OE pheno absent")
+    prob_step(ti_present, "red", "OE pheno present")
     axD.set_xlabel("Truncation index", fontsize=9)
-    axD.set_ylabel("Density", fontsize=9)
+    axD.set_ylabel("p (fraction of genes)", fontsize=9)
     axD.legend(fontsize=7)
     axD.tick_params(labelsize=7)
-    axD.text(0.55, 0.55, r"$\mathrm{Trunc}=\dfrac{h_{right}}{h_{max}}$",
+    axD.text(0.5, 0.55, r"$\mathrm{Trunc}=\dfrac{h_{right}}{h_{max}}$",
              transform=axD.transAxes, fontsize=11)
     axD.text(-0.2, 1.02, "D", transform=axD.transAxes,
              fontsize=15, fontweight="bold")
 
-    fig.suptitle("Figure 3 (regenerated from repo data): expression-distribution "
-                 "truncation in wild C. elegans", fontsize=12, y=0.99)
+    fig.suptitle("Figure 3 (regenerated from repo data; OE groups from Fig 2A): "
+                 "expression-distribution truncation in wild C. elegans",
+                 fontsize=12, y=0.99)
     fig.savefig("acfrog_figure3_worm.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"Fig 3: present={len(present)} lof_only={len(lof_only)} "
-          f"background={len(background)}  MWU p={p_mwu:.3f}")
+    print(f"Fig 3: OE-sensitive={len(present)} OE-tolerant={len(absent)} "
+          f"all={len(ti_all)}  MWU(present>absent) p={p_mwu:.3f}")
 
 
 # ===========================================================================
