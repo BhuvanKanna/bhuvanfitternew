@@ -309,6 +309,20 @@ distribution to the peak). Genes that caused OE phenotypes had significantly hig
 indices. C) Example expression distributions for 4 genes (peaks and truncated sides in
 red). D) Data in B shown as normalized histograms compared to all transcripts."
 
+#### Figure 3 — comparison without the `> -1` exclusion filter
+
+![Figure 3 without the -1 filter](acfrog_figure3_worm_nofilter.png)
+
+Same panels, but built from the **non-excluded** fits (`worm_fourparam_table.csv`) with the
+−1 expression floor **included** when re-histogramming — i.e. the pipeline's usual `> -1`
+low-expression exclusion turned **off** (the `fit_success` / `0<TI<1` / `n_obs≥30` validity
+filters still apply). This is for comparison only; the `> -1` filter is the default and
+recommended setting. Dropping it lets more transcripts through (all: 11,062 → 11,329;
+OE-tolerant: 18 → 21) and pulls fits leftward as the −1 floor re-enters each distribution,
+but the qualitative picture is unchanged (Mann-Whitney p ≈ 0.22 vs 0.24; tolerant genes
+still capped, sensitive genes still spread higher). Regenerate both via
+`python regenerate_acfrog_figures.py` (`figure3(exclude=True/False)`).
+
 **Conceptual and analytical innovation.** Which genes cause OE phenotypes? Here, we present
 a new way to think about this question. By performing data mining on our *C. elegans* OE
 screen, we identified a single overlooked factor in public data that strongly predicts OE

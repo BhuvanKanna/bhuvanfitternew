@@ -121,11 +121,15 @@ def valid(table):
     return table[m]
 
 
-def curve_xy(values, n=400):
-    """Fit one gene and return (x grid, fitted 4-param curve, fit dict)."""
+def curve_xy(values, n=400, floor=EXCLUDE_AT_OR_BELOW):
+    """Fit one gene and return (x grid, fitted 4-param curve, fit dict).
+
+    ``floor`` sets the low-expression exclusion cutoff (values <= floor are
+    dropped). Pass ``-inf`` to disable the exclusion entirely.
+    """
     v = np.asarray(values, dtype=float)
     v = v[np.isfinite(v)]
-    v = v[v > EXCLUDE_AT_OR_BELOW]
+    v = v[v > floor]
     bf = BhuvanFitter(v, "g")
     d = bf.fit("fourparam")
     x = np.linspace(bf.hist_edges[0], bf.hist_edges[-1], n)
@@ -135,8 +139,20 @@ def curve_xy(values, n=400):
 # ===========================================================================
 # FIGURE 3 -- worm
 # ===========================================================================
-def figure3():
-    table = pd.read_csv(WORM_TABLE).set_index("gene")
+def figure3(exclude=True):
+    """Regenerate Figure 3.
+
+    exclude=True  (default): use the ``> -1`` low-expression exclusion baked into
+                  the fits (the pipeline's normal filter) -> acfrog_figure3_worm.png
+    exclude=False: use the non-excluded table + include the -1 floor when
+                   re-histogramming, for comparison -> acfrog_figure3_worm_nofilter.png
+    The fit_success / 0<TI<1 / n_obs>=30 validity filters still apply in both.
+    """
+    table_csv = WORM_TABLE if exclude else "worm_fourparam_table.csv"
+    floor = EXCLUDE_AT_OR_BELOW if exclude else -np.inf
+    out_png = ("acfrog_figure3_worm.png" if exclude
+               else "acfrog_figure3_worm_nofilter.png")
+    table = pd.read_csv(table_csv).set_index("gene")
 
     # OE phenotype groups come from Figure 2A (see build_worm_groups), NOT from
     # genes_of_interest.json -- the json lacked the OE-tolerant (no-phenotype)
@@ -164,7 +180,7 @@ def figure3():
             if gid not in master.columns:
                 continue
             try:
-                x, y, _bf, d = curve_xy(master[gid].values)
+                x, y, _bf, d = curve_xy(master[gid].values, floor=floor)
             except Exception:
                 continue
             tival = table.loc[gid, "truncationindex"]
@@ -237,7 +253,7 @@ def figure3():
         ax = fig.add_subplot(gsC[ax_pos])
         v = master[gid].values.astype(float)
         v = v[np.isfinite(v)]
-        v = v[v > EXCLUDE_AT_OR_BELOW]
+        v = v[v > floor]
         bf = BhuvanFitter(v, gid)
         d = bf.fit("fourparam")
         ax.bar(bf.hist_centers, bf.hist_counts,
@@ -273,13 +289,16 @@ def figure3():
     axD.text(-0.2, 1.02, "D", transform=axD.transAxes,
              fontsize=15, fontweight="bold")
 
-    fig.suptitle("Figure 3 (regenerated from repo data; OE groups from Fig 2A): "
-                 "expression-distribution truncation in wild C. elegans",
-                 fontsize=12, y=0.99)
-    fig.savefig("acfrog_figure3_worm.png", dpi=150, bbox_inches="tight")
+    filt = ("with > -1 exclusion filter" if exclude
+            else "WITHOUT the > -1 exclusion filter (comparison)")
+    fig.suptitle("Figure 3 (regenerated from repo data; OE groups from Fig 2A; "
+                 f"{filt}): expression-distribution truncation in wild C. elegans",
+                 fontsize=11, y=0.99)
+    fig.savefig(out_png, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"Fig 3: OE-sensitive={len(present)} OE-tolerant={len(absent)} "
-          f"all={len(ti_all)}  MWU(present>absent) p={p_mwu:.3f}")
+    print(f"Fig 3 [{'filtered' if exclude else 'NO filter'}]: "
+          f"OE-sensitive={len(present)} OE-tolerant={len(absent)} "
+          f"all={len(ti_all)}  MWU(present>absent) p={p_mwu:.3f}  -> {out_png}")
 
 
 # ===========================================================================
@@ -361,6 +380,7 @@ def figure4():
 
 
 if __name__ == "__main__":
-    figure3()
+    figure3(exclude=True)          # normal pipeline (> -1 filter)
+    figure3(exclude=False)         # comparison: no exclusion filter
     figure4()
     print("done")
