@@ -37,7 +37,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
-from scipy.stats import mannwhitneyu
+from scipy.stats import mannwhitneyu, ttest_ind
 
 from bhuvanfitter import BhuvanFitter
 
@@ -301,6 +301,124 @@ def figure3(exclude=True):
           f"all={len(ti_all)}  MWU(present>absent) p={p_mwu:.3f}  -> {out_png}")
 
 
+def figure3b_comparison():
+    """
+    Side-by-side comparison of two representations of panel 3B, so the box plot
+    can be judged apples-to-apples against the grant's own style:
+
+      LEFT  -- box-and-whisker over ALL transcripts (median-based; the version
+               embedded in Figure 3), tested with Mann-Whitney.
+      RIGHT -- the grant's style: ONE canonical transcript per gene (the
+               first isoform by name), plotted as jittered dots with gene-name
+               labels and a black mean ± SEM marker, tested with a mean-based
+               Welch t-test.
+
+    Both use the same current `truncationindex` metric and the same Fig-2A OE
+    groups -- only the aggregation (all isoforms vs one per gene) and the
+    summary/statistic (median/box vs mean±SEM) differ.  Output:
+    acfrog_figure3b_comparison.png
+    """
+    import re
+    table = pd.read_csv(WORM_TABLE).set_index("gene")
+
+    def ti_of(tid):
+        if tid in table.index:
+            r = table.loc[tid]
+            if r["fit_success"] and 0 < r["truncationindex"] < 1 and r["n_obs"] >= MIN_OBS:
+                return float(r["truncationindex"])
+        return None
+
+    xl = pd.read_excel(WORM_MAP_XLSX).dropna(subset=["transcript"])
+    xl["tid"] = ("w" + xl["wwww"].astype(int).astype(str) + "_"
+                 + xl["transcript"].astype(str))
+    xl["seqname"] = xl["transcript"].str.replace(r"\.\d+$", "", regex=True)
+    by_name, by_seq = {}, {}
+    for _, r in xl.iterrows():
+        by_name.setdefault(str(r["GeneName"]), []).append((str(r["transcript"]), r["tid"]))
+        by_seq.setdefault(str(r["seqname"]), []).append((str(r["transcript"]), r["tid"]))
+
+    def recs_for(name):
+        return (by_name.get(name) or by_seq.get(name)
+                or by_seq.get(re.sub(r"\.\d+$", "", name)) or [])
+
+    def all_transcripts(names):
+        out = []
+        for n in names:
+            for _tr, tid in recs_for(n):
+                v = ti_of(tid)
+                if v is not None:
+                    out.append(v)
+        return np.array(out)
+
+    def canonical(names):
+        """One (gene, ti) per gene: first valid isoform sorted by transcript name."""
+        out = []
+        for n in names:
+            for _tr, tid in sorted(recs_for(n)):
+                v = ti_of(tid)
+                if v is not None:
+                    out.append((n, v))
+                    break
+        return out
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(11, 6))
+
+    # ---- LEFT: box plot over all transcripts (as in Figure 3) -------------
+    tL_abs = all_transcripts(TOL_GENES)
+    tL_pre = all_transcripts(SENS_GENES)
+    p_box = mannwhitneyu(tL_pre, tL_abs, alternative="greater").pvalue
+    bp = axL.boxplot([tL_abs, tL_pre], positions=[0, 1], widths=0.55,
+                     showfliers=False, patch_artist=True,
+                     medianprops=dict(color="black", lw=2),
+                     whiskerprops=dict(color="0.3"), capprops=dict(color="0.3"))
+    for patch, col in zip(bp["boxes"], ["0.5", "crimson"]):
+        patch.set_facecolor(col); patch.set_alpha(0.35); patch.set_edgecolor(col)
+    for xpos, data, col in [(0, tL_abs, "0.35"), (1, tL_pre, "crimson")]:
+        jit = xpos + (RNG.random(len(data)) - 0.5) * 0.28
+        axL.scatter(jit, data, s=16, color=col, alpha=0.7,
+                    edgecolors="white", linewidths=0.3, zorder=3)
+    axL.set_title(f"Box plot, ALL transcripts (median)\n"
+                  f"Mann-Whitney p = {p_box:.2f}  "
+                  f"(n_abs={len(tL_abs)}, n_pre={len(tL_pre)})", fontsize=9)
+    axL.set_xticks([0, 1])
+    axL.set_xticklabels(["Absent\n(tolerant)", "Present\n(sensitive)"], fontsize=9)
+    axL.set_ylabel("Truncation index", fontsize=10)
+    axL.set_ylim(-0.02, 0.7)
+
+    # ---- RIGHT: grant style, one canonical transcript / gene, mean ± SEM --
+    gAbs = canonical(TOL_GENES)
+    gPre = canonical(SENS_GENES)
+    vAbs = np.array([v for _n, v in gAbs])
+    vPre = np.array([v for _n, v in gPre])
+    p_t = ttest_ind(vPre, vAbs, equal_var=False, alternative="greater").pvalue
+    for xpos, pairs, col in [(0, gAbs, "0.35"), (1, gPre, "crimson")]:
+        for i, (name, v) in enumerate(sorted(pairs, key=lambda t: t[1])):
+            jx = xpos + (RNG.random() - 0.5) * 0.22
+            axR.scatter(jx, v, s=18, color=col, alpha=0.75,
+                        edgecolors="white", linewidths=0.3, zorder=3)
+            axR.annotate(name, (xpos + 0.14, v), fontsize=5.5, color="0.35",
+                         va="center", style="italic")
+        m = np.mean([v for _n, v in pairs])
+        sem = np.std([v for _n, v in pairs], ddof=1) / np.sqrt(len(pairs))
+        axR.errorbar(xpos - 0.28, m, yerr=sem, fmt="o", color="black",
+                     ms=7, capsize=4, zorder=4)
+    axR.set_title(f"Grant style: 1 transcript/gene, mean ± SEM\n"
+                  f"Welch t-test p = {p_t:.3f}  "
+                  f"(n_abs={len(vAbs)}, n_pre={len(vPre)})", fontsize=9)
+    axR.set_xticks([0, 1])
+    axR.set_xticklabels(["Absent\n(tolerant)", "Present\n(sensitive)"], fontsize=9)
+    axR.set_ylabel("Truncation index", fontsize=10)
+    axR.set_ylim(-0.02, 0.7)
+
+    fig.suptitle("Figure 3B, two representations of the same data "
+                 "(current metric, Fig-2A OE groups)", fontsize=12)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.savefig("acfrog_figure3b_comparison.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Fig 3B comparison: box MWU p={p_box:.3f} | grant-style t-test "
+          f"p={p_t:.3f} (abs mean={vAbs.mean():.3f}, pre mean={vPre.mean():.3f})")
+
+
 # ===========================================================================
 # FIGURE 4 -- cerebellum (GTEx)
 # ===========================================================================
@@ -382,5 +500,6 @@ def figure4():
 if __name__ == "__main__":
     figure3(exclude=True)          # normal pipeline (> -1 filter)
     figure3(exclude=False)         # comparison: no exclusion filter
+    figure3b_comparison()          # box plot vs grant-style 3B
     figure4()
     print("done")

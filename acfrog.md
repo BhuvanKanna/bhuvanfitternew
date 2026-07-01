@@ -323,6 +323,27 @@ but the qualitative picture is unchanged (Mann-Whitney p ≈ 0.22 vs 0.24; toler
 still capped, sensitive genes still spread higher). Regenerate both via
 `python regenerate_acfrog_figures.py` (`figure3(exclude=True/False)`).
 
+#### Figure 3B — box plot vs. the grant's representation
+
+![Figure 3B: two representations](acfrog_figure3b_comparison.png)
+
+The grant's 3B is **not** a box plot — it is a per-gene dot plot with a black **mean ± SEM**
+marker, using **one (canonical) transcript per gene**. This panel puts the two
+representations of the *same data / same metric / same Fig-2A groups* side by side:
+
+- **Left — box plot, all transcripts (median):** Mann-Whitney p ≈ 0.24 (as embedded in
+  Figure 3). Median-based, so the shared spike at TI ≈ 0.03 dominates.
+- **Right — grant style, 1 transcript/gene, mean ± SEM:** Welch t-test p ≈ 0.29.
+
+Neither reproduces the grant's *p < 0.004*, and the difference between them is **not** the
+truncation-index formula or the `> -1` filter — it is **transcript selection**. With the
+canonical isoform, *itsn-1* (tolerant) sits at 0.30 and *Y74C10AL.2* (which the grant plots
+at 0.68) drops to ~0, because the grant plotted different isoforms. Even the grant's own
+supplementary `trunc` values, tested on these 23/21 gene lists, only reach p ≈ 0.03–0.07 —
+so the published *p < 0.004* most likely came from an expanded gene set (the caption's *+13
+genes from independent worm studies*) or a different test, rather than from these 47 Hsa21
+orthologs alone.
+
 **Conceptual and analytical innovation.** Which genes cause OE phenotypes? Here, we present
 a new way to think about this question. By performing data mining on our *C. elegans* OE
 screen, we identified a single overlooked factor in public data that strongly predicts OE
