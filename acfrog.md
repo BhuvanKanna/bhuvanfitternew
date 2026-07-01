@@ -288,7 +288,10 @@ sensitive; *pad-1* = n.d.), mapped to fourparam-table transcript IDs via the Sup
 Data 1 gene↔transcript mapping. **A)** Overlaid 4-parameter Gaussian fits of natural
 expression level across wild *C. elegans* for Hsa21 orthologs: OE phenotype **present**
 (red, top; ★ = truncation index > 0.3) and **absent** (grey, bottom). **B)** Truncation
-index for OE-tolerant (absent) vs OE-sensitive (present) genes; horizontal bars = medians.
+index for OE-tolerant (absent) vs OE-sensitive (present) genes as a **box-and-whisker**
+(box = interquartile range, line = median, whiskers = 1.5×IQR) with individual genes
+overlaid as jittered points — the sensitive group's box and points extend to 0.4–0.6 while
+the tolerant group tops out near 0.30, though medians are similar (Mann-Whitney n.s.).
 **C)** Four example OE-sensitive genes (histogram + red Gaussian fit). **D)** Truncation-index
 histograms as per-bin fraction `p` (matching the original's axis) for all transcripts
 (grey), OE phenotype absent (blue) and present (red) — **the tolerant/blue curve is capped

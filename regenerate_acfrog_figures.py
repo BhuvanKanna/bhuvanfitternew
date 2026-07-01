@@ -195,24 +195,36 @@ def figure3():
     axA1.text(-0.16, 1.2, "A", transform=axA1.transAxes,
               fontsize=15, fontweight="bold")
 
-    # ---- Panel B: truncation index strip plot -----------------------------
+    # ---- Panel B: truncation index box-and-whisker ------------------------
     axB = fig.add_subplot(outer[:, 1])
-    for xpos, data, col in [(0, ti_absent, "0.4"), (1, ti_present, "crimson")]:
-        jit = xpos + (RNG.random(len(data)) - 0.5) * 0.35
-        axB.scatter(jit, data, s=14, color=col, alpha=0.5,
-                    edgecolors="none")
-        axB.plot([xpos - 0.25, xpos + 0.25], [data.median()] * 2,
-                 color="black", lw=2)
+    groups = [ti_absent.values, ti_present.values]
+    box_cols = ["0.5", "crimson"]
+    bp = axB.boxplot(
+        groups, positions=[0, 1], widths=0.55, showfliers=False,
+        patch_artist=True, medianprops=dict(color="black", lw=2),
+        whiskerprops=dict(color="0.3"), capprops=dict(color="0.3"),
+    )
+    for patch, col in zip(bp["boxes"], box_cols):
+        patch.set_facecolor(col)
+        patch.set_alpha(0.35)
+        patch.set_edgecolor(col)
+    # overlay individual genes as jittered points
+    for xpos, data, col in [(0, ti_absent, "0.35"), (1, ti_present, "crimson")]:
+        jit = xpos + (RNG.random(len(data)) - 0.5) * 0.28
+        axB.scatter(jit, data, s=14, color=col, alpha=0.7,
+                    edgecolors="white", linewidths=0.3, zorder=3)
     axB.set_xticks([0, 1])
     axB.set_xticklabels(["Absent\n(tolerant)", "Present\n(sensitive)"],
                         fontsize=8)
     axB.set_ylabel("Truncation index", fontsize=9)
-    axB.set_ylim(0, 0.7)
+    axB.set_xlim(-0.6, 1.6)
+    axB.set_ylim(-0.02, 0.7)
+    axB.tick_params(labelsize=7)
     sig = "n.s." if p_mwu >= 0.05 else "*"
-    axB.set_title(f"p = {p_mwu:.2f} ({sig})", fontsize=9)
+    axB.set_title(f"Mann-Whitney p = {p_mwu:.2f} ({sig})", fontsize=8)
     # label the top present genes
     for gid in ti_present.sort_values(ascending=False).index[:4]:
-        axB.annotate(gid.split("_")[-1], (1.18, ti_present.loc[gid]),
+        axB.annotate(gid.split("_")[-1], (1.32, ti_present.loc[gid]),
                      fontsize=6, va="center")
     axB.text(-0.55, 1.02, "B", transform=axB.transAxes,
              fontsize=15, fontweight="bold")
