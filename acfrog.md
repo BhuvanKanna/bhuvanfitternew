@@ -245,7 +245,8 @@ phenotypes in our proposal.
 > hlh-34, sod-1, D1037.1, unc-26, Y74C10AL.2, trpp-10, K02C4.3.
 > **OE-tolerant (no mcOE, 23):** adr-2, atp-3, B0024.15, cbs-1, cct-8, D1086.9, H39E23.3,
 > igcm-1, mbk-1, F38B6.4, stc-1, itsn-1, zig-10, mrpl-39, mtq-2, pes-4, pad-2, ikb-1, rnt-1,
-> set-29, sod-5, ubc-14, wdr-4.
+> set-29, sod-5, ubc-14, wdr-4. *(`itsn-1` and `adr-2` are excluded from the Fig. 3 panels
+> at the professor's instruction.)*
 
 *(Research Strategy — Page 37)*
 
@@ -261,13 +262,14 @@ phenotypes in our proposal.
 >
 > - **Worm (Fig. 3):** OE groups are taken from **Figure 2A** (mcOE-"Any" column = OE
 >   sensitive; no mcOE = OE tolerant), *not* from `genes_of_interest.json` — the json
->   lacked the OE-tolerant no-phenotype genes that form the correct "absent" control. With
->   the proper control, the qualitative pattern **does** appear as a **tail effect**:
->   OE-tolerant genes are capped (max TI ≈ 0.30, 94% below 0.2) while OE-sensitive genes
->   spread out to 0.60 (25% above 0.2). The center/median is similar for both, so
->   Mann-Whitney is only **p ≈ 0.24 (n.s.)** — weaker than the proposal's *p < 0.004*
->   (likely the older *unbounded* truncation-index metric or a per-gene test amplified it),
->   but the direction and the tolerant-genes-are-capped result are real.
+>   lacked the OE-tolerant no-phenotype genes that form the correct "absent" control.
+>   **Two OE-tolerant genes, `itsn-1` and `adr-2`, are excluded from all worm panels at the
+>   professor's instruction** (`EXCLUDE_GENES` in the script). With the proper control, the
+>   qualitative pattern **does** appear as a **tail effect**: OE-tolerant genes are capped
+>   (max TI ≈ 0.18) while OE-sensitive genes spread out to 0.60. The center/median is similar
+>   for both, so Mann-Whitney is only **p ≈ 0.22 (n.s.)** — weaker than the proposal's
+>   *p < 0.004* (likely the older *unbounded* truncation-index metric or a per-gene test
+>   amplified it), but the direction and the tolerant-genes-are-capped result are real.
 > - **Cerebellum (Fig. 4):** the classic triplication genes (*APP*, *SOD1*, *SNCA*,
 >   *RCAN1*, *PCSK9*, *MECP2* …) come out as mid-range Gaussians with tapering right tails;
 >   their truncation indices are ≈ 0, consistent with the repo's own section-5 finding that
@@ -316,12 +318,13 @@ red). D) Data in B shown as normalized histograms compared to all transcripts."
 Same panels, but built from the **non-excluded** fits (`worm_fourparam_table.csv`) with the
 −1 expression floor **included** when re-histogramming — i.e. the pipeline's usual `> -1`
 low-expression exclusion turned **off** (the `fit_success` / `0<TI<1` / `n_obs≥30` validity
-filters still apply). This is for comparison only; the `> -1` filter is the default and
-recommended setting. Dropping it lets more transcripts through (all: 11,062 → 11,329;
-OE-tolerant: 18 → 21) and pulls fits leftward as the −1 floor re-enters each distribution,
-but the qualitative picture is unchanged (Mann-Whitney p ≈ 0.22 vs 0.24; tolerant genes
-still capped, sensitive genes still spread higher). Regenerate both via
-`python regenerate_acfrog_figures.py` (`figure3(exclude=True/False)`).
+filters still apply; `itsn-1`/`adr-2` are excluded in both renderings). This is for
+comparison only; the `> -1` filter is the default and recommended setting. Dropping it lets
+more transcripts through (all: 11,062 → 11,329; OE-tolerant: 12 → 15) and pulls fits leftward
+as the −1 floor re-enters each distribution, but the qualitative picture is unchanged
+(Mann-Whitney p ≈ 0.20 vs 0.22; tolerant genes still capped, sensitive genes still spread
+higher). Regenerate both via `python regenerate_acfrog_figures.py`
+(`figure3(exclude=True/False)`).
 
 #### Figure 3B — box plot vs. the grant's representation
 
@@ -331,15 +334,18 @@ The grant's 3B is **not** a box plot — it is a per-gene dot plot with a black 
 marker, using **one (canonical) transcript per gene**. This panel puts the two
 representations of the *same data / same metric / same Fig-2A groups* side by side:
 
-- **Left — box plot, all transcripts (median):** Mann-Whitney p ≈ 0.24 (as embedded in
+- **Left — box plot, all transcripts (median):** Mann-Whitney p ≈ 0.22 (as embedded in
   Figure 3). Median-based, so the shared spike at TI ≈ 0.03 dominates.
-- **Right — grant style, 1 transcript/gene, mean ± SEM:** Welch t-test p ≈ 0.29.
+- **Right — grant style, 1 transcript/gene, mean ± SEM:** Welch t-test p ≈ 0.11.
 
-Neither reproduces the grant's *p < 0.004*, and the difference between them is **not** the
-truncation-index formula or the `> -1` filter — it is **transcript selection**. With the
-canonical isoform, *itsn-1* (tolerant) sits at 0.30 and *Y74C10AL.2* (which the grant plots
-at 0.68) drops to ~0, because the grant plotted different isoforms. Even the grant's own
-supplementary `trunc` values, tested on these 23/21 gene lists, only reach p ≈ 0.03–0.07 —
+(Both panels exclude `itsn-1`/`adr-2` per the professor; removing those two elevated
+tolerant genes drops the grant-style tolerant mean from ≈ 0.087 to ≈ 0.049 and its t-test
+from p ≈ 0.29 to ≈ 0.11.) Neither reproduces the grant's *p < 0.004*, and the difference
+between the two representations is **not** the truncation-index formula or the `> -1`
+filter — it is **transcript selection**. With the canonical isoform, *Y74C10AL.2* (which the
+grant plots at 0.68) drops to ~0, because the grant plotted different isoforms. Even the
+grant's own supplementary `trunc` values, tested on these gene lists, only reach
+p ≈ 0.03–0.07 —
 so the published *p < 0.004* most likely came from an expanded gene set (the caption's *+13
 genes from independent worm studies*) or a different test, rather than from these 47 Hsa21
 orthologs alone.

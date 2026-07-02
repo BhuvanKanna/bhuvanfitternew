@@ -73,6 +73,13 @@ TOL_GENES = [   # 23 OE-tolerant Hsa21 orthologs (no mcOE phenotype)
     "ubc-14", "wdr-4",
 ]
 
+# Genes to drop from the Fig-3 analysis at the professor's instruction
+# (itsn-1 and adr-2, both OE-tolerant). Removed from every worm panel (3A-D and
+# the 3B comparison), in both the filtered and no-filter renderings.
+EXCLUDE_GENES = {"itsn-1", "adr-2"}
+SENS_GENES = [g for g in SENS_GENES if g not in EXCLUDE_GENES]
+TOL_GENES = [g for g in TOL_GENES if g not in EXCLUDE_GENES]
+
 
 def build_worm_groups(table_index):
     """
