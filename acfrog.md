@@ -328,17 +328,26 @@ higher). Regenerate both via `python regenerate_acfrog_figures.py`
 
 #### Figure 3B — box plot vs. the grant's representation
 
-![Figure 3B: two representations](acfrog_figure3b_comparison.png)
+Filtered (`> -1` exclusion — the default view):
+
+![Figure 3B: two representations, filtered](acfrog_figure3b_comparison.png)
+
+No-filter comparison (same panels, non-excluded fits):
+
+![Figure 3B: two representations, no filter](acfrog_figure3b_comparison_nofilter.png)
 
 The grant's 3B is **not** a box plot — it is a per-gene dot plot with a black **mean ± SEM**
-marker, using **one (canonical) transcript per gene**. This panel puts the two
-representations of the *same data / same metric / same Fig-2A groups* side by side:
+marker, using **one (canonical) transcript per gene**. Each figure puts the two
+representations of the *same data / same metric / same Fig-2A groups* side by side; the two
+figures differ only in the `> -1` exclusion filter (each figure's title says which):
 
-- **Left — box plot, all transcripts (median):** Mann-Whitney p ≈ 0.22 (as embedded in
-  Figure 3). Median-based, so the shared spike at TI ≈ 0.03 dominates.
-- **Right — grant style, 1 transcript/gene, mean ± SEM:** Welch t-test p ≈ 0.11.
+- **Left — box plot, all transcripts (median):** Mann-Whitney p ≈ 0.22 filtered / ≈ 0.20
+  no-filter (as embedded in Figure 3). Median-based, so the shared spike at TI ≈ 0.03
+  dominates.
+- **Right — grant style, 1 transcript/gene, mean ± SEM:** Welch t-test p ≈ 0.11 filtered /
+  ≈ 0.08 no-filter.
 
-(Both panels exclude `itsn-1`/`adr-2` per the professor; removing those two elevated
+(All panels exclude `itsn-1`/`adr-2` per the professor; removing those two elevated
 tolerant genes drops the grant-style tolerant mean from ≈ 0.087 to ≈ 0.049 and its t-test
 from p ≈ 0.29 to ≈ 0.11.) Neither reproduces the grant's *p < 0.004*, and the difference
 between the two representations is **not** the truncation-index formula or the `> -1`

@@ -308,7 +308,7 @@ def figure3(exclude=True):
           f"all={len(ti_all)}  MWU(present>absent) p={p_mwu:.3f}  -> {out_png}")
 
 
-def figure3b_comparison():
+def figure3b_comparison(exclude=True):
     """
     Side-by-side comparison of two representations of panel 3B, so the box plot
     can be judged apples-to-apples against the grant's own style:
@@ -321,12 +321,21 @@ def figure3b_comparison():
                Welch t-test.
 
     Both use the same current `truncationindex` metric and the same Fig-2A OE
-    groups -- only the aggregation (all isoforms vs one per gene) and the
-    summary/statistic (median/box vs mean±SEM) differ.  Output:
-    acfrog_figure3b_comparison.png
+    groups (itsn-1/adr-2 excluded) -- only the aggregation (all isoforms vs one
+    per gene) and the summary/statistic (median/box vs mean±SEM) differ.
+
+    exclude=True  (default): filtered fits (the `> -1` excluded table)
+                  -> acfrog_figure3b_comparison.png
+    exclude=False: non-excluded fits (`worm_fourparam_table.csv`)
+                  -> acfrog_figure3b_comparison_nofilter.png
     """
     import re
-    table = pd.read_csv(WORM_TABLE).set_index("gene")
+    table = pd.read_csv(WORM_TABLE if exclude else "worm_fourparam_table.csv"
+                        ).set_index("gene")
+    filt_label = ("with > -1 exclusion filter" if exclude
+                  else "WITHOUT the > -1 exclusion filter")
+    out_png = ("acfrog_figure3b_comparison.png" if exclude
+               else "acfrog_figure3b_comparison_nofilter.png")
 
     def ti_of(tid):
         if tid in table.index:
@@ -385,7 +394,7 @@ def figure3b_comparison():
         axL.scatter(jit, data, s=16, color=col, alpha=0.7,
                     edgecolors="white", linewidths=0.3, zorder=3)
     axL.set_title(f"Box plot, ALL transcripts (median)\n"
-                  f"Mann-Whitney p = {p_box:.2f}  "
+                  f"Mann-Whitney p = {p_box:.3f}  "
                   f"(n_abs={len(tL_abs)}, n_pre={len(tL_pre)})", fontsize=9)
     axL.set_xticks([0, 1])
     axL.set_xticklabels(["Absent\n(tolerant)", "Present\n(sensitive)"], fontsize=9)
@@ -418,12 +427,14 @@ def figure3b_comparison():
     axR.set_ylim(-0.02, 0.7)
 
     fig.suptitle("Figure 3B, two representations of the same data "
-                 "(current metric, Fig-2A OE groups)", fontsize=12)
+                 f"(current metric, Fig-2A OE groups; {filt_label})", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig("acfrog_figure3b_comparison.png", dpi=150, bbox_inches="tight")
+    fig.savefig(out_png, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"Fig 3B comparison: box MWU p={p_box:.3f} | grant-style t-test "
-          f"p={p_t:.3f} (abs mean={vAbs.mean():.3f}, pre mean={vPre.mean():.3f})")
+    print(f"Fig 3B comparison [{'filtered' if exclude else 'NO filter'}]: "
+          f"box MWU p={p_box:.3f} | grant-style t-test "
+          f"p={p_t:.3f} (abs mean={vAbs.mean():.3f}, pre mean={vPre.mean():.3f})"
+          f"  -> {out_png}")
 
 
 # ===========================================================================
@@ -507,6 +518,7 @@ def figure4():
 if __name__ == "__main__":
     figure3(exclude=True)          # normal pipeline (> -1 filter)
     figure3(exclude=False)         # comparison: no exclusion filter
-    figure3b_comparison()          # box plot vs grant-style 3B
+    figure3b_comparison(exclude=True)   # box vs grant-style 3B (filtered)
+    figure3b_comparison(exclude=False)  # box vs grant-style 3B (no filter)
     figure4()
     print("done")
