@@ -308,6 +308,60 @@ def figure3(exclude=True):
           f"all={len(ti_all)}  MWU(present>absent) p={p_mwu:.3f}  -> {out_png}")
 
 
+def figure3d(exclude=True):
+    """
+    Standalone version of panel 3D: probability-normalized (per-bin fraction `p`)
+    truncation-index histograms for OE phenotype absent (blue) vs present (red)
+    vs all transcripts (grey), matching the original panel's `p` axis.
+
+    Same OE groups (Fig 2A, itsn-1/adr-2 excluded) and validity filter as
+    Figure 3.
+
+    exclude=True  (default): filtered `> -1` table  -> acfrog_figure3d_worm.png
+    exclude=False: non-excluded table               -> acfrog_figure3d_worm_nofilter.png
+    """
+    table_csv = WORM_TABLE if exclude else "worm_fourparam_table.csv"
+    out_png = ("acfrog_figure3d_worm.png" if exclude
+               else "acfrog_figure3d_worm_nofilter.png")
+    table = pd.read_csv(table_csv).set_index("gene")
+    sens_ids, tol_ids = build_worm_groups(table.index)
+
+    vt = valid(table)
+    ti = vt["truncationindex"]
+    ti_present = ti.loc[[i for i in sens_ids if i in vt.index]]
+    ti_absent = ti.loc[[i for i in tol_ids if i in vt.index]]
+    ti_all = ti
+
+    fig, axD = plt.subplots(figsize=(7, 5))
+    bins = np.linspace(0, 1, 26)
+
+    def prob_step(data, color, label):
+        w = np.ones(len(data)) / len(data)
+        axD.hist(data, bins=bins, weights=w, histtype="step",
+                 color=color, lw=1.8, label=f"{label} (n={len(data)})")
+
+    prob_step(ti_all, "0.5", "All transcripts")
+    prob_step(ti_absent, "blue", "OE pheno absent")
+    prob_step(ti_present, "red", "OE pheno present")
+    axD.set_xlabel("Truncation index", fontsize=11)
+    axD.set_ylabel("p (fraction of genes)", fontsize=11)
+    axD.legend(fontsize=9)
+    axD.tick_params(labelsize=9)
+    axD.text(0.55, 0.55, r"$\mathrm{Trunc}=\dfrac{h_{right}}{h_{max}}$",
+             transform=axD.transAxes, fontsize=13)
+
+    filt = ("with > -1 exclusion filter" if exclude
+            else "WITHOUT the > -1 exclusion filter")
+    fig.suptitle("Figure 3D (OE groups from Fig 2A, itsn-1/adr-2 excluded; "
+                 f"{filt}):\ntruncation-index distributions", fontsize=11)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.savefig(out_png, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Fig 3D [{'filtered' if exclude else 'NO filter'}]: "
+          f"absent={len(ti_absent)} present={len(ti_present)} "
+          f"all={len(ti_all)}  -> {out_png}")
+
+
 def figure3b_comparison(exclude=True):
     """
     Side-by-side comparison of two representations of panel 3B, so the box plot
@@ -520,5 +574,7 @@ if __name__ == "__main__":
     figure3(exclude=False)         # comparison: no exclusion filter
     figure3b_comparison(exclude=True)   # box vs grant-style 3B (filtered)
     figure3b_comparison(exclude=False)  # box vs grant-style 3B (no filter)
+    figure3d(exclude=True)              # standalone panel 3D (filtered)
+    figure3d(exclude=False)             # standalone panel 3D (no filter)
     figure4()
     print("done")
