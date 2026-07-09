@@ -265,29 +265,33 @@ def _mwu(a, b):
 
 
 def figure3b(dataset):
-    """Fig 3B: truncation index by OE group (box + jitter) with Mann-Whitney U."""
+    """Fig 3B: truncation index, POS vs TOL only -- jittered dots with a
+    black mean +/- SEM marker per group, Mann-Whitney U."""
     g = groups_for(dataset)
-    order = ["POS", "GRANT", "TOL", "ALL"]
-    fig, ax = plt.subplots(figsize=(6.5, 5))
-    bp = ax.boxplot([g[k] for k in order], showfliers=False, widths=0.6,
-                    patch_artist=True)
-    for patch, k in zip(bp["boxes"], order):
-        patch.set_facecolor(COLORS[k])
-        patch.set_alpha(0.35)
+    order = ["POS", "TOL"]
+    fig, ax = plt.subplots(figsize=(5, 5))
     rng = np.random.default_rng(0)
     for i, k in enumerate(order, 1):
         y = g[k]
-        if len(y):
-            ax.scatter(rng.normal(i, 0.06, len(y)), y, s=8, color=COLORS[k],
-                       alpha=0.5, linewidths=0)
-    ax.set_xticks(range(1, 5))
+        if not len(y):
+            continue
+        ax.scatter(rng.normal(i, 0.06, len(y)), y, s=10, color=COLORS[k],
+                   alpha=0.5, linewidths=0, zorder=1)
+        m = float(np.mean(y))
+        sem = float(np.std(y, ddof=1) / np.sqrt(len(y))) if len(y) > 1 else 0.0
+        ax.errorbar(i, m, yerr=sem, fmt="o", color="black", ecolor="black",
+                    capsize=6, markersize=7, elinewidth=1.5, zorder=3,
+                    label="mean ± SEM" if i == 1 else None)
+    ax.set_xlim(0.5, 2.5)
+    ax.set_xticks([1, 2])
     ax.set_xticklabels([f"{k}\n(n={len(g[k])})" for k in order])
     ax.set_ylabel("truncation index")
-    p_pt, p_gt, p_pg = (_mwu(g["POS"], g["TOL"]), _mwu(g["GRANT"], g["TOL"]),
-                        _mwu(g["POS"], g["GRANT"]))
-    ax.set_title(f"Fig 3B ({dataset}): truncation index by OE group\n"
-                 f"MWU  POS vs TOL p={p_pt:.3g} | GRANT vs TOL p={p_gt:.3g} | "
-                 f"POS vs GRANT p={p_pg:.3g}", fontsize=9)
+    p = _mwu(g["POS"], g["TOL"])
+    mp, mt = float(np.mean(g["POS"])), float(np.mean(g["TOL"]))
+    ax.set_title(f"Fig 3B ({dataset}): truncation index, POS vs TOL\n"
+                 f"mean±SEM  POS={mp:.3f}  TOL={mt:.3f} | MWU p={p:.3g}",
+                 fontsize=9)
+    ax.legend(fontsize=8, loc="upper right")
     fig.tight_layout()
     out = f"grant_figure3b_{dataset}.png"
     fig.savefig(out, dpi=150)
