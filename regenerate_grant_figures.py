@@ -133,22 +133,22 @@ def human_to_worm(symbols):
 # ---------------------------------------------------------------------------
 # truncation-index data + group -> TI resolvers
 # ---------------------------------------------------------------------------
-def valid_open(table):
-    """Validity filter over the OPEN interval 0 < truncationindex < 1 -- omits
-    the over-represented TI == 0 (uncapped) and TI == 1 (fully-capped) piles, at
-    the user's request. Matches the notebooks' / acfrog `select`/`valid`."""
-    m = (
-        table["fit_success"]
-        & table["truncationindex"].notna()
-        & (table["truncationindex"] > 0)
-        & (table["truncationindex"] < 1)
-        & (table["n_obs"] >= MIN_OBS)
-    )
+def valid(table, filtered=True):
+    """Validity filter. `filtered=True` uses the OPEN interval 0 < TI < 1
+    (drops the over-represented TI==0 uncapped / TI==1 fully-capped piles; the
+    notebooks' / acfrog `select`/`valid`, the user's standard process).
+    `filtered=False` uses the CLOSED interval 0 <= TI <= 1 (keeps the 0/1 piles;
+    faithful to the grant's own Fig-10A method, which counts the uncapped
+    fraction). Both also require fit_success and n_obs >= MIN_OBS."""
+    ti = table["truncationindex"]
+    lo = (ti > 0) if filtered else (ti >= 0)
+    hi = (ti < 1) if filtered else (ti <= 1)
+    m = table["fit_success"] & ti.notna() & lo & hi & (table["n_obs"] >= MIN_OBS)
     return table[m]
 
 
 _worm_tab = None
-_cereb = None  # (valid table indexed by ENSG, symbol -> [ENSG] map)
+_cereb = None  # (raw cerebellum table indexed by ENSG, symbol -> [ENSG] map)
 
 
 def _worm_table():
@@ -159,17 +159,19 @@ def _worm_table():
 
 
 def _cereb_table():
+    """Cache the RAW cerebellum table (indexed by ENSG) + the symbol->[ENSG] map;
+    the validity filter is applied per call so both filtered/unfiltered modes
+    share one read."""
     global _cereb
     if _cereb is None:
         t = pd.read_csv(CEREB_TABLE)
         t["ensg"] = t["gene"].astype(str).str.replace(r"\.\d+$", "", regex=True)
-        v = valid_open(t)
         src = pd.read_csv(CEREB_CSV, usecols=["Name", "Description"])
         src["ensg"] = src["Name"].astype(str).str.replace(r"\.\d+$", "", regex=True)
         sym2ensg = {}
         for _, r in src.iterrows():
             sym2ensg.setdefault(str(r["Description"]), []).append(r["ensg"])
-        _cereb = (v.set_index("ensg"), sym2ensg)
+        _cereb = (t.set_index("ensg"), sym2ensg)
     return _cereb
 
 
@@ -200,26 +202,27 @@ def build_worm_groups_names(names):
     return list(dict.fromkeys(ids)), unmapped
 
 
-def worm_all_ti():
-    return valid_open(_worm_table())["truncationindex"].to_numpy()
+def worm_all_ti(filtered=True):
+    return valid(_worm_table(), filtered)["truncationindex"].to_numpy()
 
 
-def human_all_ti():
-    v, _ = _cereb_table()
-    return v["truncationindex"].to_numpy()
+def human_all_ti(filtered=True):
+    raw, _ = _cereb_table()
+    return valid(raw, filtered)["truncationindex"].to_numpy()
 
 
-def worm_ti(worm_names):
+def worm_ti(worm_names, filtered=True):
     """TI values for the transcripts of the given worm gene names."""
-    v = valid_open(_worm_table())
+    v = valid(_worm_table(), filtered)
     ids, _ = build_worm_groups_names(worm_names)
     ids = [i for i in ids if i in v.index]
     return v.loc[ids, "truncationindex"].to_numpy() if ids else np.array([])
 
 
-def human_ti(symbols):
+def human_ti(symbols, filtered=True):
     """TI values for the given human symbols (one row per matched ENSG)."""
-    v, sym2ensg = _cereb_table()
+    raw, sym2ensg = _cereb_table()
+    v = valid(raw, filtered)
     ensgs = [e for s in symbols for e in sym2ensg.get(s, []) if e in v.index]
     ensgs = list(dict.fromkeys(ensgs))
     return v.loc[ensgs, "truncationindex"].to_numpy() if ensgs else np.array([])
@@ -228,27 +231,28 @@ def human_ti(symbols):
 # ---------------------------------------------------------------------------
 # group assembler
 # ---------------------------------------------------------------------------
-def groups_for(dataset):
+def groups_for(dataset, filtered=True):
     """Assemble {POS, GRANT, TOL, ALL} -> TI arrays for `dataset` in
-    {"worm","human"}. Prints a per-group coverage line."""
+    {"worm","human"} at the given filter mode. Prints a per-group coverage line."""
     pos, tol = load_pos(), load_tol()
     if dataset == "human":
-        g = {"POS": human_ti(pos), "GRANT": human_ti(GRANT_HUMAN),
-             "TOL": human_ti(tol), "ALL": human_all_ti()}
+        g = {"POS": human_ti(pos, filtered), "GRANT": human_ti(GRANT_HUMAN, filtered),
+             "TOL": human_ti(tol, filtered), "ALL": human_all_ti(filtered)}
     elif dataset == "worm":
         h2w = human_to_worm(pos | tol)
         pos_w = [w for s in pos for w in h2w.get(s, [])]
         tol_w = [w for s in tol for w in h2w.get(s, [])]
-        g = {"POS": worm_ti(pos_w), "GRANT": worm_ti(GRANT_WORM),
-             "TOL": worm_ti(tol_w), "ALL": worm_all_ti()}
+        g = {"POS": worm_ti(pos_w, filtered), "GRANT": worm_ti(GRANT_WORM, filtered),
+             "TOL": worm_ti(tol_w, filtered), "ALL": worm_all_ti(filtered)}
     else:
         raise ValueError(dataset)
+    tag = "filtered 0<TI<1" if filtered else "unfiltered 0<=TI<=1"
     for k, v in g.items():
         if len(v):
-            print(f"  [{dataset}] {k}: n={len(v)}  median={np.median(v):.3f}  "
-                  f"mean={np.mean(v):.3f}")
+            print(f"  [{dataset}/{tag}] {k}: n={len(v)}  median={np.median(v):.3f}  "
+                  f"frac0={np.mean(v == 0):.2f}")
         else:
-            print(f"  [{dataset}] {k}: n=0")
+            print(f"  [{dataset}/{tag}] {k}: n=0")
     return g
 
 
@@ -266,10 +270,19 @@ def _mwu(a, b):
     return mannwhitneyu(a, b, alternative="two-sided").pvalue
 
 
-def figure3b(dataset):
+def _out(name, filtered):
+    """Prefix the filtered (0<TI<1) renderings with 'filtered_'."""
+    return ("filtered_" if filtered else "") + name
+
+
+def _tag(filtered):
+    return "0<TI<1" if filtered else "0<=TI<=1 (keeps 0/1)"
+
+
+def figure3b(dataset, filtered=True):
     """Fig 3B: truncation index, POS vs TOL only -- jittered dots with a
     black mean +/- SEM marker per group, Mann-Whitney U."""
-    g = groups_for(dataset)
+    g = groups_for(dataset, filtered)
     order = ["POS", "TOL"]
     fig, ax = plt.subplots(figsize=(5, 5))
     rng = np.random.default_rng(0)
@@ -290,12 +303,12 @@ def figure3b(dataset):
     ax.set_ylabel("truncation index")
     p = _mwu(g["POS"], g["TOL"])
     mp, mt = float(np.mean(g["POS"])), float(np.mean(g["TOL"]))
-    ax.set_title(f"Fig 3B ({dataset}): truncation index, POS vs TOL\n"
+    ax.set_title(f"Fig 3B ({dataset}, {_tag(filtered)}): truncation index, POS vs TOL\n"
                  f"mean±SEM  POS={mp:.3f}  TOL={mt:.3f} | MWU p={p:.3g}",
                  fontsize=9)
     ax.legend(fontsize=8, loc="upper right")
     fig.tight_layout()
-    out = f"grant_figure3b_{dataset}.png"
+    out = _out(f"grant_figure3b_{dataset}.png", filtered)
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print("wrote", out)
@@ -312,54 +325,55 @@ def _prob_hist(ax, vals, color, label, bins=20):
             label=f"{label} (n={len(vals)})")
 
 
-def figure3d(dataset):
+def figure3d(dataset, filtered=True):
     """Fig 3D: per-bin-fraction normalized truncation-index histograms."""
-    g = groups_for(dataset)
+    g = groups_for(dataset, filtered)
     fig, ax = plt.subplots(figsize=(6.5, 5))
     for k in ["ALL", "TOL", "GRANT", "POS"]:
         _prob_hist(ax, g[k], COLORS[k], LABELS[k])
     ax.set_xlabel("truncation index")
     ax.set_ylabel("fraction of genes (p)")
-    ax.set_title(f"Fig 3D ({dataset}): normalized truncation-index histograms",
-                 fontsize=10)
+    ax.set_title(f"Fig 3D ({dataset}, {_tag(filtered)}): "
+                 f"normalized truncation-index histograms", fontsize=10)
     ax.legend(fontsize=8)
     fig.tight_layout()
-    out = f"grant_figure3d_{dataset}.png"
+    out = _out(f"grant_figure3d_{dataset}.png", filtered)
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print("wrote", out)
     return out
 
 
-def _cdf(ax, vals, color, label):
+def _cdf(ax, vals, color, label, filtered):
     if len(vals) == 0:
         return
     x = np.sort(vals)
     y = np.arange(1, len(x) + 1) / len(x)
-    ax.plot(x, y, color=color, lw=2,
-            label=f"{label} (n={len(vals)}, median={np.median(vals):.3f})")
+    stat = (f"median={np.median(vals):.3f}" if filtered
+            else f"frac0={np.mean(vals == 0):.2f}")
+    ax.plot(x, y, color=color, lw=2, label=f"{label} (n={len(vals)}, {stat})")
 
 
-def figure10a():
+def figure10a(filtered=True):
     """Fig 10A (human cerebellum): cumulative truncation index + KS vs ALL."""
-    g = groups_for("human")
+    g = groups_for("human", filtered)
     fig, ax = plt.subplots(figsize=(6.5, 5))
-    _cdf(ax, g["ALL"], "black", LABELS["ALL"])
-    _cdf(ax, g["TOL"], COLORS["TOL"], LABELS["TOL"])
-    _cdf(ax, g["GRANT"], COLORS["GRANT"], LABELS["GRANT"])
-    _cdf(ax, g["POS"], COLORS["POS"], LABELS["POS"])
+    _cdf(ax, g["ALL"], "black", LABELS["ALL"], filtered)
+    _cdf(ax, g["TOL"], COLORS["TOL"], LABELS["TOL"], filtered)
+    _cdf(ax, g["GRANT"], COLORS["GRANT"], LABELS["GRANT"], filtered)
+    _cdf(ax, g["POS"], COLORS["POS"], LABELS["POS"], filtered)
 
     def ks(a):
         return float("nan") if len(a) < 3 else ks_2samp(a, g["ALL"]).pvalue
 
     ax.set_xlabel("truncation index")
     ax.set_ylabel("cumulative fraction")
-    ax.set_title("Fig 10A (human cerebellum): cumulative truncation index\n"
+    ax.set_title(f"Fig 10A (human cerebellum, {_tag(filtered)}): cumulative truncation index\n"
                  f"KS vs ALL  POS p={ks(g['POS']):.3g} | GRANT p={ks(g['GRANT']):.3g} | "
                  f"TOL p={ks(g['TOL']):.3g}", fontsize=9)
     ax.legend(fontsize=8, loc="lower right")
     fig.tight_layout()
-    out = "grant_figure10a_human.png"
+    out = _out("grant_figure10a_human.png", filtered)
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print("wrote", out)
@@ -367,8 +381,12 @@ def figure10a():
 
 
 if __name__ == "__main__":
-    for ds in ("human", "worm"):
-        figure3b(ds)
-        figure3d(ds)
-    figure10a()
-    print("done: 5 figures")
+    # Two renderings per figure: unfiltered (0<=TI<=1, keeps the 0/1 piles;
+    # grant-faithful) and filtered (0<TI<1, 'filtered_' prefix; the notebooks'
+    # standard). 10 PNGs total.
+    for filt in (False, True):
+        for ds in ("human", "worm"):
+            figure3b(ds, filt)
+            figure3d(ds, filt)
+        figure10a(filt)
+    print("done: 10 figures (5 unfiltered + 5 filtered)")
