@@ -10,9 +10,11 @@ grant). Truncation-index values are read from the committed excluded fourparam
 tables (no refit). Human<->worm orthologs are fetched once from HGNC + Alliance
 and cached to human_worm_orthologs.tsv.
 
-Unlike the notebooks / regenerate_acfrog_figures.py, the validity filter here
-KEEPS truncationindex == 0 (uncapped) genes -- they carry the whole
-tolerant-vs-sensitive signal and the grant explicitly counts them.
+Validity filter: fit_success & 0 < truncationindex < 1 & n_obs >= 30. The open
+interval OMITS the truncationindex == 0 (uncapped) and == 1 (fully-capped) piles,
+which are over-represented and likely partly artefactual, at the user's request.
+(This matches the notebooks' / regenerate_acfrog_figures.py `0 < TI < 1` filter;
+an earlier version of this script kept TI == 0 to count the uncapped fraction.)
 """
 import json
 import re
@@ -131,15 +133,15 @@ def human_to_worm(symbols):
 # ---------------------------------------------------------------------------
 # truncation-index data + group -> TI resolvers
 # ---------------------------------------------------------------------------
-def valid_incl0(table):
-    """Validity filter that KEEPS truncationindex == 0 (uncapped) genes -- the
-    grant's figures count them (they carry the tolerant-vs-sensitive signal).
-    Differs deliberately from the notebooks' 0 < TI < 1 `select`/`valid`."""
+def valid_open(table):
+    """Validity filter over the OPEN interval 0 < truncationindex < 1 -- omits
+    the over-represented TI == 0 (uncapped) and TI == 1 (fully-capped) piles, at
+    the user's request. Matches the notebooks' / acfrog `select`/`valid`."""
     m = (
         table["fit_success"]
         & table["truncationindex"].notna()
-        & (table["truncationindex"] >= 0)
-        & (table["truncationindex"] <= 1)
+        & (table["truncationindex"] > 0)
+        & (table["truncationindex"] < 1)
         & (table["n_obs"] >= MIN_OBS)
     )
     return table[m]
@@ -161,7 +163,7 @@ def _cereb_table():
     if _cereb is None:
         t = pd.read_csv(CEREB_TABLE)
         t["ensg"] = t["gene"].astype(str).str.replace(r"\.\d+$", "", regex=True)
-        v = valid_incl0(t)
+        v = valid_open(t)
         src = pd.read_csv(CEREB_CSV, usecols=["Name", "Description"])
         src["ensg"] = src["Name"].astype(str).str.replace(r"\.\d+$", "", regex=True)
         sym2ensg = {}
@@ -199,7 +201,7 @@ def build_worm_groups_names(names):
 
 
 def worm_all_ti():
-    return valid_incl0(_worm_table())["truncationindex"].to_numpy()
+    return valid_open(_worm_table())["truncationindex"].to_numpy()
 
 
 def human_all_ti():
@@ -209,7 +211,7 @@ def human_all_ti():
 
 def worm_ti(worm_names):
     """TI values for the transcripts of the given worm gene names."""
-    v = valid_incl0(_worm_table())
+    v = valid_open(_worm_table())
     ids, _ = build_worm_groups_names(worm_names)
     ids = [i for i in ids if i in v.index]
     return v.loc[ids, "truncationindex"].to_numpy() if ids else np.array([])
@@ -244,7 +246,7 @@ def groups_for(dataset):
     for k, v in g.items():
         if len(v):
             print(f"  [{dataset}] {k}: n={len(v)}  median={np.median(v):.3f}  "
-                  f"frac0={np.mean(v == 0):.2f}")
+                  f"mean={np.mean(v):.3f}")
         else:
             print(f"  [{dataset}] {k}: n=0")
     return g
@@ -334,9 +336,8 @@ def _cdf(ax, vals, color, label):
         return
     x = np.sort(vals)
     y = np.arange(1, len(x) + 1) / len(x)
-    frac0 = float(np.mean(vals == 0))
     ax.plot(x, y, color=color, lw=2,
-            label=f"{label} (n={len(vals)}, frac0={frac0:.2f})")
+            label=f"{label} (n={len(vals)}, median={np.median(vals):.3f})")
 
 
 def figure10a():
