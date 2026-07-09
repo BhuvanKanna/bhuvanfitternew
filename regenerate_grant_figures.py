@@ -63,3 +63,307 @@ def load_tol():
     syms = df["sym"].dropna().astype(str).str.strip()
     ok = syms[syms.str.fullmatch(r"[A-Z0-9][A-Za-z0-9orf\-\.]*")]
     return {s for s in ok if s != "geneDUPtol"}
+
+
+# ---------------------------------------------------------------------------
+# human -> worm orthologs (HGNC symbol -> HGNC id -> Alliance -> C. elegans)
+# ---------------------------------------------------------------------------
+def _http_json(url, accept="application/json"):
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "curl/8", "Accept": accept})
+    return json.load(urllib.request.urlopen(req, timeout=30))
+
+
+def _alliance_worm_orthologs(human_symbol):
+    """Human gene symbol -> list of C. elegans ortholog gene symbols (Alliance/
+    DIOPT). Resolves the symbol to an HGNC id first (Alliance keys on HGNC)."""
+    docs = _http_json(
+        f"https://rest.genenames.org/fetch/symbol/{human_symbol}"
+    )["response"]["docs"]
+    if not docs or "hgnc_id" not in docs[0]:
+        return []
+    hgnc = docs[0]["hgnc_id"]
+    d = _http_json(
+        f"https://www.alliancegenome.org/api/gene/{hgnc}/orthologs?stringencyFilter=all")
+    out = []
+    for r in d.get("results", []):
+        o = r.get("geneToGeneOrthologyGenerated", {}).get("objectGene", {})
+        if o.get("taxon", {}).get("name") == "Caenorhabditis elegans":
+            s = o.get("geneSymbol", {}).get("displayText")
+            if s:
+                out.append(s)
+    return out
+
+
+def human_to_worm(symbols):
+    """Map human symbols -> list of C. elegans ortholog gene symbols, backed by
+    the human_worm_orthologs.tsv cache (columns human_symbol, worm_symbol; a
+    human with no ortholog gets one row with an empty worm_symbol). Only symbols
+    absent from the cache are fetched; the cache is rewritten afterwards."""
+    symbols = set(symbols)
+    cache = {}
+    try:
+        cdf = pd.read_csv(ORTH_CACHE, sep="\t").fillna("")
+        for h, sub in cdf.groupby("human_symbol"):
+            cache[h] = [w for w in sub["worm_symbol"].astype(str) if w]
+    except FileNotFoundError:
+        pass
+    missing = sorted(s for s in symbols if s not in cache)
+    for i, s in enumerate(missing):
+        try:
+            cache[s] = _alliance_worm_orthologs(s)
+        except Exception as e:
+            print(f"    ortholog fetch failed for {s}: {e}")
+            cache[s] = []
+        time.sleep(0.1)
+        if i % 25 == 0:
+            print(f"  orthologs {i}/{len(missing)}")
+    rows = []
+    for h, ws in sorted(cache.items()):
+        if ws:
+            rows += [{"human_symbol": h, "worm_symbol": w} for w in ws]
+        else:
+            rows.append({"human_symbol": h, "worm_symbol": ""})
+    pd.DataFrame(rows).to_csv(ORTH_CACHE, sep="\t", index=False)
+    return {s: cache.get(s, []) for s in symbols}
+
+
+# ---------------------------------------------------------------------------
+# truncation-index data + group -> TI resolvers
+# ---------------------------------------------------------------------------
+def valid_incl0(table):
+    """Validity filter that KEEPS truncationindex == 0 (uncapped) genes -- the
+    grant's figures count them (they carry the tolerant-vs-sensitive signal).
+    Differs deliberately from the notebooks' 0 < TI < 1 `select`/`valid`."""
+    m = (
+        table["fit_success"]
+        & table["truncationindex"].notna()
+        & (table["truncationindex"] >= 0)
+        & (table["truncationindex"] <= 1)
+        & (table["n_obs"] >= MIN_OBS)
+    )
+    return table[m]
+
+
+_worm_tab = None
+_cereb = None  # (valid table indexed by ENSG, symbol -> [ENSG] map)
+
+
+def _worm_table():
+    global _worm_tab
+    if _worm_tab is None:
+        _worm_tab = pd.read_csv(WORM_TABLE).set_index("gene")
+    return _worm_tab
+
+
+def _cereb_table():
+    global _cereb
+    if _cereb is None:
+        t = pd.read_csv(CEREB_TABLE)
+        t["ensg"] = t["gene"].astype(str).str.replace(r"\.\d+$", "", regex=True)
+        v = valid_incl0(t)
+        src = pd.read_csv(CEREB_CSV, usecols=["Name", "Description"])
+        src["ensg"] = src["Name"].astype(str).str.replace(r"\.\d+$", "", regex=True)
+        sym2ensg = {}
+        for _, r in src.iterrows():
+            sym2ensg.setdefault(str(r["Description"]), []).append(r["ensg"])
+        _cereb = (v.set_index("ensg"), sym2ensg)
+    return _cereb
+
+
+def build_worm_groups_names(names):
+    """Resolve arbitrary worm gene names -> fourparam transcript IDs present in
+    the worm table (mirrors regenerate_acfrog_figures.build_worm_groups, but for
+    any name list). Returns (ids, unmapped_names)."""
+    tab = _worm_table()
+    xl = pd.read_excel(WORM_MAP_XLSX).dropna(subset=["transcript"])
+    xl["tid"] = ("w" + xl["wwww"].astype(int).astype(str) + "_"
+                 + xl["transcript"].astype(str))
+    xl["seqname"] = xl["transcript"].str.replace(r"\.\d+$", "", regex=True)
+    tabset = set(tab.index)
+    by_name, by_seq = {}, {}
+    for _, r in xl.iterrows():
+        if r["tid"] not in tabset:
+            continue
+        by_name.setdefault(str(r["GeneName"]), []).append(r["tid"])
+        by_seq.setdefault(str(r["seqname"]), []).append(r["tid"])
+    ids, unmapped = [], []
+    for n in names:
+        got = (by_name.get(n) or by_seq.get(n)
+               or by_seq.get(re.sub(r"\.\d+$", "", str(n))))
+        if got:
+            ids += got
+        else:
+            unmapped.append(n)
+    return list(dict.fromkeys(ids)), unmapped
+
+
+def worm_all_ti():
+    return valid_incl0(_worm_table())["truncationindex"].to_numpy()
+
+
+def human_all_ti():
+    v, _ = _cereb_table()
+    return v["truncationindex"].to_numpy()
+
+
+def worm_ti(worm_names):
+    """TI values for the transcripts of the given worm gene names."""
+    v = valid_incl0(_worm_table())
+    ids, _ = build_worm_groups_names(worm_names)
+    ids = [i for i in ids if i in v.index]
+    return v.loc[ids, "truncationindex"].to_numpy() if ids else np.array([])
+
+
+def human_ti(symbols):
+    """TI values for the given human symbols (one row per matched ENSG)."""
+    v, sym2ensg = _cereb_table()
+    ensgs = [e for s in symbols for e in sym2ensg.get(s, []) if e in v.index]
+    ensgs = list(dict.fromkeys(ensgs))
+    return v.loc[ensgs, "truncationindex"].to_numpy() if ensgs else np.array([])
+
+
+# ---------------------------------------------------------------------------
+# group assembler
+# ---------------------------------------------------------------------------
+def groups_for(dataset):
+    """Assemble {POS, GRANT, TOL, ALL} -> TI arrays for `dataset` in
+    {"worm","human"}. Prints a per-group coverage line."""
+    pos, tol = load_pos(), load_tol()
+    if dataset == "human":
+        g = {"POS": human_ti(pos), "GRANT": human_ti(GRANT_HUMAN),
+             "TOL": human_ti(tol), "ALL": human_all_ti()}
+    elif dataset == "worm":
+        h2w = human_to_worm(pos | tol)
+        pos_w = [w for s in pos for w in h2w.get(s, [])]
+        tol_w = [w for s in tol for w in h2w.get(s, [])]
+        g = {"POS": worm_ti(pos_w), "GRANT": worm_ti(GRANT_WORM),
+             "TOL": worm_ti(tol_w), "ALL": worm_all_ti()}
+    else:
+        raise ValueError(dataset)
+    for k, v in g.items():
+        if len(v):
+            print(f"  [{dataset}] {k}: n={len(v)}  median={np.median(v):.3f}  "
+                  f"frac0={np.mean(v == 0):.2f}")
+        else:
+            print(f"  [{dataset}] {k}: n=0")
+    return g
+
+
+# ---------------------------------------------------------------------------
+# figures
+# ---------------------------------------------------------------------------
+COLORS = {"POS": "#d1495b", "GRANT": "#e3a008", "TOL": "#2e86ab", "ALL": "0.55"}
+LABELS = {"POS": "POS (positives)", "GRANT": "GRANT (Fig 2A)",
+          "TOL": "TOL (dup-tolerant)", "ALL": "All genes"}
+
+
+def _mwu(a, b):
+    if len(a) < 3 or len(b) < 3:
+        return float("nan")
+    return mannwhitneyu(a, b, alternative="two-sided").pvalue
+
+
+def figure3b(dataset):
+    """Fig 3B: truncation index by OE group (box + jitter) with Mann-Whitney U."""
+    g = groups_for(dataset)
+    order = ["POS", "GRANT", "TOL", "ALL"]
+    fig, ax = plt.subplots(figsize=(6.5, 5))
+    bp = ax.boxplot([g[k] for k in order], showfliers=False, widths=0.6,
+                    patch_artist=True)
+    for patch, k in zip(bp["boxes"], order):
+        patch.set_facecolor(COLORS[k])
+        patch.set_alpha(0.35)
+    rng = np.random.default_rng(0)
+    for i, k in enumerate(order, 1):
+        y = g[k]
+        if len(y):
+            ax.scatter(rng.normal(i, 0.06, len(y)), y, s=8, color=COLORS[k],
+                       alpha=0.5, linewidths=0)
+    ax.set_xticks(range(1, 5))
+    ax.set_xticklabels([f"{k}\n(n={len(g[k])})" for k in order])
+    ax.set_ylabel("truncation index")
+    p_pt, p_gt, p_pg = (_mwu(g["POS"], g["TOL"]), _mwu(g["GRANT"], g["TOL"]),
+                        _mwu(g["POS"], g["GRANT"]))
+    ax.set_title(f"Fig 3B ({dataset}): truncation index by OE group\n"
+                 f"MWU  POS vs TOL p={p_pt:.3g} | GRANT vs TOL p={p_gt:.3g} | "
+                 f"POS vs GRANT p={p_pg:.3g}", fontsize=9)
+    fig.tight_layout()
+    out = f"grant_figure3b_{dataset}.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print("wrote", out)
+    return out
+
+
+def _prob_hist(ax, vals, color, label, bins=20):
+    if len(vals) == 0:
+        return
+    counts, edges = np.histogram(vals, bins=bins, range=(0, 1))
+    frac = counts / counts.sum()
+    centers = (edges[:-1] + edges[1:]) / 2
+    ax.step(centers, frac, where="mid", color=color, lw=2,
+            label=f"{label} (n={len(vals)})")
+
+
+def figure3d(dataset):
+    """Fig 3D: per-bin-fraction normalized truncation-index histograms."""
+    g = groups_for(dataset)
+    fig, ax = plt.subplots(figsize=(6.5, 5))
+    for k in ["ALL", "TOL", "GRANT", "POS"]:
+        _prob_hist(ax, g[k], COLORS[k], LABELS[k])
+    ax.set_xlabel("truncation index")
+    ax.set_ylabel("fraction of genes (p)")
+    ax.set_title(f"Fig 3D ({dataset}): normalized truncation-index histograms",
+                 fontsize=10)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    out = f"grant_figure3d_{dataset}.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print("wrote", out)
+    return out
+
+
+def _cdf(ax, vals, color, label):
+    if len(vals) == 0:
+        return
+    x = np.sort(vals)
+    y = np.arange(1, len(x) + 1) / len(x)
+    frac0 = float(np.mean(vals == 0))
+    ax.plot(x, y, color=color, lw=2,
+            label=f"{label} (n={len(vals)}, frac0={frac0:.2f})")
+
+
+def figure10a():
+    """Fig 10A (human cerebellum): cumulative truncation index + KS vs ALL."""
+    g = groups_for("human")
+    fig, ax = plt.subplots(figsize=(6.5, 5))
+    _cdf(ax, g["ALL"], "black", LABELS["ALL"])
+    _cdf(ax, g["TOL"], COLORS["TOL"], LABELS["TOL"])
+    _cdf(ax, g["GRANT"], COLORS["GRANT"], LABELS["GRANT"])
+    _cdf(ax, g["POS"], COLORS["POS"], LABELS["POS"])
+
+    def ks(a):
+        return float("nan") if len(a) < 3 else ks_2samp(a, g["ALL"]).pvalue
+
+    ax.set_xlabel("truncation index")
+    ax.set_ylabel("cumulative fraction")
+    ax.set_title("Fig 10A (human cerebellum): cumulative truncation index\n"
+                 f"KS vs ALL  POS p={ks(g['POS']):.3g} | GRANT p={ks(g['GRANT']):.3g} | "
+                 f"TOL p={ks(g['TOL']):.3g}", fontsize=9)
+    ax.legend(fontsize=8, loc="lower right")
+    fig.tight_layout()
+    out = "grant_figure10a_human.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print("wrote", out)
+    return out
+
+
+if __name__ == "__main__":
+    for ds in ("human", "worm"):
+        figure3b(ds)
+        figure3d(ds)
+    figure10a()
+    print("done: 5 figures")
