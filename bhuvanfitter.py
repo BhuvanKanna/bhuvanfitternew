@@ -18,7 +18,7 @@ gene_peaks(values, ...)                -- KDE peak detection for one gene
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, skew, kurtosis
 from scipy.signal import find_peaks
 
 
@@ -188,6 +188,17 @@ class BhuvanFitter:
         """Sample standard deviation (ddof=1) of the gene's finite values."""
         return float(np.std(self._data, ddof=1)) if self._data.size > 1 else float("nan")
 
+    def skew(self):
+        """Skewness of the gene's finite values (scipy default: bias=True).
+        Matches the notebook's build_shape_features `skew(...)`."""
+        return float(skew(self._data)) if self._data.size > 1 else float("nan")
+
+    def kurt(self):
+        """Fisher excess kurtosis of the gene's finite values (scipy default:
+        Fisher=True so a normal distribution is 0, bias=True). Matches the
+        notebook's build_shape_features `kurtosis(...)`."""
+        return float(kurtosis(self._data)) if self._data.size > 1 else float("nan")
+
     # -- Public dispatch -------------------------------------------------------
 
     def fit(self, model: str, **kwargs) -> dict:
@@ -213,7 +224,7 @@ class BhuvanFitter:
 
                 gene, y0, A, x0, w, sumsquarevalue,
                 ti_fourparam_sigma_dist, truncationindex,
-                min, max, mean, std, right, maxheight, rightheight,
+                min, max, mean, std, skew, kurt, right, maxheight, rightheight,
                 n_obs, fit_success
 
             (truncationindex == rightheight / maxheight).
@@ -304,6 +315,8 @@ class BhuvanFitter:
             "max": self.max(),
             "mean": self.mean(),
             "std": self.std(),
+            "skew": self.skew(),
+            "kurt": self.kurt(),
             "right": self._x_max,
             "maxheight": self.maxheight,
             "rightheight": self.rightheight,

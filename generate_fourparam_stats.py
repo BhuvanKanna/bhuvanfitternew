@@ -36,7 +36,7 @@ OUTPUT_CSV = HERE / "worm_fourparam_table.csv"
 COLUMNS = [
     "gene", "y0", "A", "x0", "w", "sumsquarevalue",
     "ti_fourparam_sigma_dist", "truncationindex",
-    "min", "max", "mean", "std", "right", "maxheight", "rightheight",
+    "min", "max", "mean", "std", "skew", "kurt", "right", "maxheight", "rightheight",
     "n_obs", "fit_success",
 ]
 MIN_OBS = 10  # genes with fewer finite observations are not fit (matches the notebook)
