@@ -81,15 +81,19 @@ def symbol_map():
     return dict(zip(idm["Name"].str.split(".").str[0], idm["Description"]))
 
 
-def load_labelled():
-    """Return (X, y, meta_df) for POS/TOL genes with one canonical fit_success row each."""
+def load_labelled(pos_file=POS_FILE):
+    """Return (X, y, meta_df) for POS/TOL genes with one canonical fit_success row each.
+
+    `pos_file` defaults to the 44-gene curated OMIM/G2P list; pass
+    "positive_genes_compiled.txt" for the 70-gene list expanded with
+    grant_genes.csv's mcOE-sensitive genes (see train_tissue_aware_classifier.py)."""
     sym = symbol_map()
     df = pd.read_csv(TABLE)
     df = df[df["fit_success"] == True].copy()  # noqa: E712
     df["symbol"] = df["gene"].str.split(".").str[0].map(sym)
     df = add_derived(df)
 
-    pos = {l.strip() for l in open(POS_FILE) if l.strip()}
+    pos = {l.strip() for l in open(pos_file) if l.strip()}
     tol_raw = pd.read_csv(TOL_FILE, header=None)[0].dropna().astype(str).str.strip()
     tol = set(tol_raw) - {"geneDUPtol"}
     tol -= pos  # POS wins any (there is currently no overlap)
