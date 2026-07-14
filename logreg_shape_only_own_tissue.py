@@ -63,11 +63,15 @@ def run_one(df, feats, label):
     print(f"Confusion [[TN FP][FN TP]]:\n{cm}")
 
     pipe.fit(X, y)
-    coefs = pd.Series(pipe.named_steps["clf"].coef_[0], index=feats).sort_values(
-        key=np.abs, ascending=False)
+    clf = pipe.named_steps["clf"]
+    coefs = pd.Series(clf.coef_[0], index=feats).sort_values(key=np.abs, ascending=False)
+    bias = clf.intercept_[0]
     print("Standardized coefficients (log-odds per SD):")
     print(coefs.round(3).to_string())
-    return roc_auc, oof, y, coefs
+    print(f"bias (intercept): {bias:.4f}")
+    terms = " + ".join(f"{clf.coef_[0][i]:.3f}*{f}_z" for i, f in enumerate(feats))
+    print(f"Combined model: log-odds(POS) = {bias:.4f} + {terms}")
+    return roc_auc, oof, y, coefs, bias
 
 
 def main():
@@ -76,13 +80,14 @@ def main():
     print("=" * 60)
     print("SHAPE-ONLY MODEL (mean/level fully excluded)")
     print("=" * 60)
-    raw_auc, raw_oof, raw_y, raw_coefs = run_one(df, PURE_SHAPE, "RAW (own-tissue, uncontrolled)")
+    raw_auc, raw_oof, raw_y, raw_coefs, raw_bias = run_one(
+        df, PURE_SHAPE, "RAW (own-tissue, uncontrolled)")
 
     df_dm = df.copy()
     for f in PURE_SHAPE:
         df_dm[f] = df_dm.groupby("tissue")[f].transform(lambda s: s - s.mean())
-    dm_auc, dm_oof, dm_y, dm_coefs = run_one(df_dm, PURE_SHAPE,
-                                             "TISSUE-DEMEANED (within-tissue only)")
+    dm_auc, dm_oof, dm_y, dm_coefs, dm_bias = run_one(
+        df_dm, PURE_SHAPE, "TISSUE-DEMEANED (within-tissue only)")
 
     raw_coefs.to_csv(COEF_OUT.replace(".csv", "_raw.csv"), header=["coefficient"])
     dm_coefs.to_csv(COEF_OUT.replace(".csv", "_demeaned.csv"), header=["coefficient"])
