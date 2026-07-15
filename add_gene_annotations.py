@@ -34,16 +34,16 @@ from pathlib import Path
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-WORM_MAP_XLSX = HERE / "Supplementary Data 1 trunc 20250702.xlsx"
-CEREB_SOURCE = HERE / "cerebellumlog2.csv"
-ORTHOLOG_TSV = HERE / "human_worm_orthologs.tsv"
+WORM_MAP_XLSX = HERE / "data/Supplementary Data 1 trunc 20250702.xlsx"
+CEREB_SOURCE = HERE / "data/cerebellumlog2.csv"
+ORTHOLOG_TSV = HERE / "data/human_worm_orthologs.tsv"
 
 WORM_TABLES = [
-    HERE / "worm_fourparam_table.csv",
-    HERE / "worm_fourparam_table_excluded_at_or_below_-1.csv",
-    HERE / "worm_fourparam_table_excluded_at_or_below_-0.75.csv",
+    HERE / "outputs/tables/worm_fourparam_table.csv",
+    HERE / "outputs/tables/worm_fourparam_table_excluded_at_or_below_-1.csv",
+    HERE / "outputs/tables/worm_fourparam_table_excluded_at_or_below_-0.75.csv",
 ]
-CEREB_TABLE = HERE / "cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv"
+CEREB_TABLE = HERE / "outputs/tables/cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv"
 
 
 def _insert_after_gene(df: pd.DataFrame, wormbasegeneid, genename) -> pd.DataFrame:

@@ -19,8 +19,8 @@ from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate
 from ablation_dosage_features import LEVEL, PURE_SHAPE
 from train_dosage_classifier import make_pipeline
 
-OWN_TISSUE_TABLE = "gene_own_tissue_fourparam.csv"
-OUT = "own_tissue_vs_cerebellum_ablation.csv"
+OWN_TISSUE_TABLE = "outputs/tables/gene_own_tissue_fourparam.csv"
+OUT = "outputs/tables/own_tissue_vs_cerebellum_ablation.csv"
 
 # Cerebellum-baseline numbers already established (ablation_dosage_features.py /
 # CLAUDE.md), for direct comparison -- not recomputed here.

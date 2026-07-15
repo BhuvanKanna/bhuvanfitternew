@@ -41,8 +41,8 @@ from bhuvanfitter import gene_peaks
 from generate_fourparam_stats import load_expression, git_push
 
 HERE = Path(__file__).resolve().parent
-INPUT_CSV = HERE / "worm.csv"
-OUTPUT_JSON = HERE / "peaks.json"
+INPUT_CSV = HERE / "data/worm.csv"
+OUTPUT_JSON = HERE / "outputs/tables/peaks.json"
 
 
 def build_peaks(df, limit: int | None = None) -> dict:

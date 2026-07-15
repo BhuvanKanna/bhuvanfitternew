@@ -1,0 +1,34 @@
+worm_gene	wbgene_id	best_human_ortholog	all_human_orthologs	worm_categories	in_positive_strict	in_positive_extended
+B0024.15	WBGene00007104	B3GALT5	B3GALT5	lof_behavior	False	False
+D1037.1	WBGene00017025	SON	SON	mco_dev,mco_behavior	True	True
+F43G9.12	WBGene00009672	PAXBP1	GCFC2; PAXBP1	mco_dev,mco_behavior	False	False
+K02C4.3	WBGene00010502	USP28	USP28	mco_dev	False	False
+Y105E8A.1	WBGene00013666	SH3BGRL	SH3BGRL; SH3BGRL2	mco_dev	False	False
+Y74C10AL.2	WBGene00022280	TMEM50B	TMEM50A; TMEM50B	mco_dev	False	False
+atp-3	WBGene00000230	ATP5PO	ATP5PO	lof_dev	False	False
+cbs-1	WBGene00013866	CBS	CBS	lof_dev	False	False
+cct-8	WBGene00021934	CCT8	CCT8	lof_dev	False	False
+chaf-2	WBGene00022141	CHAF1B	CHAF1B	mco_dev,mco_behavior	False	False
+cle-1	WBGene00000527	COL15A1	COL15A1	mco_dev,mco_behavior,lof_dev,lof_behavior	False	False
+dip-2	WBGene00017885	DIP2B	DIP2A; DIP2B; DIP2C	mco_dev,lof_dev	False	False
+dnsn-1	WBGene00016074	DONSON	DONSON	lof_dev	False	False
+eva-1	WBGene00009304	EVA1C	EVA1A; EVA1B; EVA1C	mco_dev,mco_behavior,lof_behavior	False	False
+mrpl-39	WBGene00044344	MRPL39	MRPL39	lof_dev	False	False
+mrps-6	WBGene00020037	MRPS6	MRPS6	mco_dev,lof_dev	False	False
+mtq-2	WBGene00016341	HEMK2	HEMK2	lof_behavior	False	False
+ncam-1	WBGene00017184	NCAM1	NCAM1	mco_dev,mco_behavior,lof_dev	False	False
+nrd-1	WBGene00017004	SCAF4	SCAF4; SCAF8	mco_dev,lof_dev	False	False
+pad-2	WBGene00010757	POFUT2	POFUT2	lof_behavior	False	False
+pat-3	WBGene00003930	ITGB7	ITGB7	mco_dev	False	False
+pdxk-1	WBGene00019008	PDXK	PDXK	lof_behavior	False	False
+pes-4	WBGene00003978	PCBP1	PCBP1; PCBP3	lof_behavior	False	False
+pfk-1.1	WBGene00022199	PFKM	PFKL; PFKM; PFKP	mco_dev	False	False
+rcan-1	WBGene00004321	RCAN3	RCAN1; RCAN2; RCAN3	mco_dev,lof_dev	False	False
+rnt-1	WBGene00004393	RUNX3	RUNX1; RUNX2; RUNX3	lof_behavior	False	False
+rrp-1	WBGene00008151	RRP1	RRP1; RRP1B	mco_dev,mco_behavior,lof_dev	False	False
+sod-1	WBGene00004930	SOD1	SOD1	mco_dev,lof_dev	False	False
+stc-1	WBGene00006059	HSPA13	HSPA13	lof_dev	False	False
+trpp-10	WBGene00022138	TRAPPC10	TRAPPC10	mco_dev	False	False
+ubc-14	WBGene00006709	UBE2G2	UBE2G2	lof_behavior	False	False
+unc-26	WBGene00006763	SYNJ1	SYNJ1; SYNJ2	mco_dev,lof_behavior	False	False
+wdr-4	WBGene00022420	WDR4	WDR4	lof_behavior	False	False

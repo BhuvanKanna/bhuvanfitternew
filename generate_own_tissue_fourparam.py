@@ -29,11 +29,11 @@ from bhuvanfitter import BhuvanFitter
 from generate_fourparam_stats import COLUMNS, MIN_OBS, _failed_row
 from regenerate_grant_figures import load_tol
 
-TPM_MATRIX = "gtex_full_persample_tpm.gct.gz"
-SAMPLE_ATTRS = "gtex_sample_attributes.txt"
-TISSUE_SPECIFICITY = "gtex_tissue_specificity.csv"
-POS_FILE = "positive_genes_compiled.txt"
-OUT_TABLE = "gene_own_tissue_fourparam.csv"
+TPM_MATRIX = "data/gtex_full_persample_tpm.gct.gz"
+SAMPLE_ATTRS = "data/gtex_sample_attributes.txt"
+TISSUE_SPECIFICITY = "outputs/tables/gtex_tissue_specificity.csv"
+POS_FILE = "data/positive_genes_compiled.txt"
+OUT_TABLE = "outputs/tables/gene_own_tissue_fourparam.csv"
 
 
 def load_top_tissue_by_symbol():
@@ -79,7 +79,7 @@ def main():
     print(f"Labelled genes: {len(labelled)}  with a tissue-table match: {len(gene_top_tissue)}")
 
     # Bridge SMTSD (sample attributes) <-> median-file tissue column naming.
-    with gzip.open("gtex_median_tpm_by_tissue.gct.gz", "rt") as f:
+    with gzip.open("data/gtex_median_tpm_by_tissue.gct.gz", "rt") as f:
         f.readline(); f.readline()
         median_cols = f.readline().strip().split("\t")[2:]
     attrs = pd.read_csv(SAMPLE_ATTRS, sep="\t", usecols=["SAMPID", "SMTSD"])

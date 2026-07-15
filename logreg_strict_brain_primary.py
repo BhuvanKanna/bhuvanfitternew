@@ -27,10 +27,10 @@ from tissue_matched_reanalysis import strict_brain_primary_tol
 from train_dosage_classifier import load_labelled, make_pipeline
 from train_tissue_aware_classifier import TISSUE, load_tissue_features
 
-POS_FILE = "positive_genes_compiled.txt"
+POS_FILE = "data/positive_genes_compiled.txt"
 FEATURES = LEVEL + PURE_SHAPE + TISSUE
-FIG_OUT = "logreg_strict_brain_primary_eval.png"
-COEF_OUT = "logreg_strict_brain_primary_coefficients.csv"
+FIG_OUT = "outputs/figures/logreg_strict_brain_primary_eval.png"
+COEF_OUT = "outputs/tables/logreg_strict_brain_primary_coefficients.csv"
 
 
 def build_data():

@@ -31,11 +31,11 @@ from regenerate_grant_figures import _cereb_table, load_tol, valid
 
 PTRIPLO_THRESHOLDS = [0.94, 0.95]
 NAMED_EXAMPLES = ["APP", "SNCA", "PCSK9"]  # the grant's own named example genes
-FIG_OUT = "grant_original_genesets_eval.png"
+FIG_OUT = "outputs/figures/grant_original_genesets_eval.png"
 
 
 def load_ptriplo():
-    d = pd.read_csv("dosage_sensitivity_collins2022.tsv.gz", sep="\t")
+    d = pd.read_csv("data/dosage_sensitivity_collins2022.tsv.gz", sep="\t")
     d.columns = [c.lstrip("#") for c in d.columns]
     return d[["gene", "pTriplo"]].dropna()
 

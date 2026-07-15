@@ -8,6 +8,18 @@ A small toolkit that analyzes per-gene expression distributions from a *C. elega
 - fits a **4-parameter Gaussian** + computes **truncation-index** metrics → `worm_fourparam_table.csv`;
 - detects **KDE density peaks** (number / location / height / prominence) → `peaks.json`.
 
+## Repository layout
+
+Scripts, notebooks, `bhuvanfitter.py`, and `CLAUDE.md` live at the repo root — every command below is still `python some_script.py` run from the root, no path prefix needed for the script itself. Everything the scripts *read or write* is sorted into three folders:
+
+- **`data/`** — source/reference inputs the scripts never write to: `worm.csv`, `cerebellumlog2.csv` (both LFS), the GTEx median/per-sample/sample-attribute files, the Collins 2022 dosage scores, the curated positive/TOL/ClinGen gene lists, `genes_of_interest.json`, `grant_genes.csv`, the xlsx gene-name map, and the ortholog cache TSVs.
+- **`outputs/tables/`** — every generated CSV/JSON (fourparam tables, predictions, ablations, Enrichr results, coefficients, `peaks.json`).
+- **`outputs/figures/`** — every generated PNG.
+- **`outputs/models/`** — saved classifiers (`.joblib`) and their paired `*_metrics.json`.
+- **`docs/`** — reference/planning documents: `grant.pdf`, `acfrog.md`, and the `docs/superpowers/` spec/plan files. Unchanged in role, just consolidated here.
+
+When reading a filename anywhere below without a directory prefix, resolve it against this layout (e.g. "`worm_fourparam_table.csv`" in prose means `outputs/tables/worm_fourparam_table.csv` on disk). Path constants inside each script already point at the right folder (e.g. `HERE / "data/worm.csv"`).
+
 ## Keeping the GitHub repo updated (important)
 
 This repo (`BhuvanKanna/bhuvanfitternew`, private) is the centralized home for the code **and** the data. **Commit and push every file you change to GitHub as soon as the work in a turn is finished — do this proactively, without being asked.** Do not batch changes for "later." Do not auto-push pre-existing working-tree changes you did not make yourself (e.g. a deletion of a file the user is actively editing) — surface those and confirm first.
@@ -27,13 +39,13 @@ Git LFS note: the large source matrices — `worm.csv` (~64 MB, worm; originally
 ## The pipeline (requires reading 3 files to see end-to-end)
 
 ```
-worm.csv                              bhuvanfitter.py
+data/worm.csv                         bhuvanfitter.py
   (strain col + 207 isolate cols,       (BhuvanFitter.fit)
    25,849 gene rows)                           │
         │  set_index('strain').T               │
         ▼  → 207 strains × 25,849 genes         ▼
-  generate_fourparam_stats.py ── per gene ──► worm_fourparam_table.csv
-        │   (build_table loops df.columns)      (25,849 rows, 19 cols)
+  generate_fourparam_stats.py ── per gene ──► outputs/tables/worm_fourparam_table.csv
+        │   (build_table loops df.columns)      (25,849 rows, 21 cols)
         └── commits + pushes the CSV to origin
 ```
 
@@ -48,7 +60,7 @@ A near-identical variant, `generate_fourparam_stats_excluded.py`, fits the same 
 A parallel pipeline produces the peak dictionary:
 
 ```
-worm.csv ──► generate_peaks.py ──► peaks.json
+data/worm.csv ──► generate_peaks.py ──► outputs/tables/peaks.json
    (load_expression, same loader)   (gene_peaks per col)   (pushed to origin)
 ```
 
@@ -119,9 +131,9 @@ python generate_fourparam_stats_excluded.py --threshold -0.75  # -> worm_..._at_
 python generate_fourparam_stats_excluded.py --limit 50 --no-push
 
 # Excluded variant on another dataset (GTEx cerebellum), parallel + lower curve_fit cap
-python generate_fourparam_stats_excluded.py --input cerebellumlog2.csv \
+python generate_fourparam_stats_excluded.py --input data/cerebellumlog2.csv \
     --id-col Name --drop-col Description --threshold -1 --jobs 11 --max-nfev 2000 --no-push
-    # -> cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv
+    # -> outputs/tables/cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv
 
 # Peak dictionary — same flags (all genes + push / sanity subset / local only)
 python generate_peaks.py

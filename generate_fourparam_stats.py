@@ -29,8 +29,8 @@ import pandas as pd
 from bhuvanfitter import BhuvanFitter
 
 HERE = Path(__file__).resolve().parent
-INPUT_CSV = HERE / "worm.csv"
-OUTPUT_CSV = HERE / "worm_fourparam_table.csv"
+INPUT_CSV = HERE / "data/worm.csv"
+OUTPUT_CSV = HERE / "outputs/tables/worm_fourparam_table.csv"
 
 # The exact columns returned by BhuvanFitter.fit("fourparam"), in order.
 COLUMNS = [

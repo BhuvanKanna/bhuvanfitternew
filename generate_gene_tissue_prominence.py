@@ -10,12 +10,12 @@ import pandas as pd
 
 from regenerate_grant_figures import load_tol
 
-POS_FILE = "positive_genes_compiled.txt"
-OUT = "gene_tissue_prominence.csv"
+POS_FILE = "data/positive_genes_compiled.txt"
+OUT = "outputs/tables/gene_tissue_prominence.csv"
 
 
 def main():
-    tissue = pd.read_csv("gtex_tissue_specificity.csv")
+    tissue = pd.read_csv("outputs/tables/gtex_tissue_specificity.csv")
     pos = {l.strip() for l in open(POS_FILE) if l.strip()}
     tol = load_tol()
 

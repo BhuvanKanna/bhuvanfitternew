@@ -33,9 +33,9 @@ from regenerate_acfrog_figures import (
     WORM_MAP_XLSX, SENS_GENES,
 )
 
-POS_TXT = "positive_genes.txt"
-TOL_CSV = "positiveANDnegativeControlGenes.csv"
-ORTH_CACHE = "human_worm_orthologs.tsv"
+POS_TXT = "data/positive_genes.txt"
+TOL_CSV = "data/positiveANDnegativeControlGenes.csv"
+ORTH_CACHE = "data/human_worm_orthologs.tsv"
 
 # GRANT (Fig-2A mcOE-phenotype) worm names -> human symbol(s), transcribed from
 # grant.pdf Figure 2A. Merged paralog rows contribute all listed human symbols.
@@ -271,8 +271,9 @@ def _mwu(a, b):
 
 
 def _out(name, filtered):
-    """Prefix the filtered (0<TI<1) renderings with 'filtered_'."""
-    return ("filtered_" if filtered else "") + name
+    """Prefix the filtered (0<TI<1) renderings with 'filtered_', and place the
+    result under outputs/figures/."""
+    return "outputs/figures/" + ("filtered_" if filtered else "") + name
 
 
 def _tag(filtered):

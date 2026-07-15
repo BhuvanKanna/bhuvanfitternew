@@ -27,10 +27,10 @@ from train_dosage_classifier import load_labelled, make_pipeline
 from train_tissue_aware_classifier import TISSUE, load_tissue_features
 
 K_NEIGHBORS = 5
-POS_FILE = "positive_genes_compiled.txt"
-MATCHED_TOL_OUT = "tol_tissue_matched.txt"
-SUMMARY_OUT = "tissue_matched_enrichr_summary.csv"
-FIG_OUT = "tissue_matched_comparison.png"
+POS_FILE = "data/positive_genes_compiled.txt"
+MATCHED_TOL_OUT = "outputs/tables/tol_tissue_matched.txt"
+SUMMARY_OUT = "outputs/tables/tissue_matched_enrichr_summary.csv"
+FIG_OUT = "outputs/figures/tissue_matched_comparison.png"
 
 
 def build_tissue_matched_tol(k=K_NEIGHBORS):
@@ -68,7 +68,7 @@ def rerun_enrichr(pos_symbols, matched_tol_symbols):
         time.sleep(1)
         for lib in LIBRARIES:
             df = get_enrichment(uid, lib)
-            df.to_csv(f"enrichr_{name}_{lib}.csv", index=False)
+            df.to_csv(f"outputs/tables/enrichr_{name}_{lib}.csv", index=False)
             top = df.iloc[0]
             brain_hit = top_brain_hit(df, top_n=50)
             print(f"  {name:20s} {lib:24s} top: {top['term'][:40]:40s} adj_p={top['adj_pvalue']:.2e}"
@@ -119,7 +119,7 @@ def strict_brain_primary_tol():
     literally the single top-expressed tissue (45 genome-wide, per
     gene_tissue_prominence.csv's definition) -- a much smaller but more literal
     "brain-primary" counterpart to POS than the continuous nearest-neighbor match."""
-    t = pd.read_csv("gtex_tissue_specificity.csv")
+    t = pd.read_csv("outputs/tables/gtex_tissue_specificity.csv")
     t = t.sort_values("top_tissue_tpm", ascending=False).drop_duplicates("symbol", keep="first")
     return set(t.loc[t["top_tissue"].str.startswith("Brain"), "symbol"])
 
@@ -161,13 +161,13 @@ def main():
     print(f"\nSaved Enrichr summary -> {SUMMARY_OUT}")
 
     clf_df = rerun_classifier(pos_t.index.tolist(), matched_tol.index.tolist())
-    clf_df.to_csv("tissue_matched_classifier_ablation.csv", index=False)
-    print("Saved classifier ablation -> tissue_matched_classifier_ablation.csv")
+    clf_df.to_csv("outputs/tables/tissue_matched_classifier_ablation.csv", index=False)
+    print("Saved classifier ablation -> outputs/tables/tissue_matched_classifier_ablation.csv")
 
     strict_tol = strict_brain_primary_tol()
     strict_df = rerun_classifier_strict(strict_tol)
-    strict_df.to_csv("tissue_matched_strict_classifier_ablation.csv", index=False)
-    print("Saved strict-subset classifier ablation -> tissue_matched_strict_classifier_ablation.csv")
+    strict_df.to_csv("outputs/tables/tissue_matched_strict_classifier_ablation.csv", index=False)
+    print("Saved strict-subset classifier ablation -> outputs/tables/tissue_matched_strict_classifier_ablation.csv")
 
     import matplotlib
     matplotlib.use("Agg")

@@ -1,0 +1,50 @@
+{
+  "n_pos": 42,
+  "n_neg": 472,
+  "prevalence": 0.08171206225680934,
+  "model": "logreg",
+  "best_params": {
+    "clf__C": 0.01
+  },
+  "cv_roc_auc_tuned": 0.8158475799427647,
+  "oof_roc_auc": 0.8152744148506861,
+  "oof_pr_auc": 0.386391142605304,
+  "f1_threshold": 0.7208554281750936,
+  "oof_accuracy": 0.9299610894941635,
+  "oof_balanced_accuracy": 0.6798829701372073,
+  "oof_f1": 0.47058823529411764,
+  "confusion_matrix": [
+    [
+      462,
+      10
+    ],
+    [
+      26,
+      16
+    ]
+  ],
+  "model_comparison_roc_auc": {
+    "logreg": 0.7999362324250343,
+    "rf": 0.7682366243623242,
+    "histgbm": 0.7596114221724523
+  },
+  "permutation_importance": {
+    "mean": 0.02531,
+    "min": 0.02369,
+    "max": 0.02263,
+    "n_obs": 0.00662,
+    "truncationindex": 0.00419,
+    "x0": 0.00258,
+    "kurt": 0.00191,
+    "cv": 0.00189,
+    "y0": 0.00046,
+    "w": 0.00015,
+    "ti_fourparam_sigma_dist": 0.0001,
+    "w_x0": 7e-05,
+    "maxheight": 5e-05,
+    "std": -4e-05,
+    "A": -0.0001,
+    "rightheight": -0.00033,
+    "skew": -0.0006
+  }
+}

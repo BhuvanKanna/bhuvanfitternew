@@ -36,8 +36,8 @@ import pandas as pd
 
 URL = ("https://storage.googleapis.com/adult-gtex/bulk-gex/v10/rna-seq/"
       "GTEx_Analysis_v10_RNASeQCv2.4.2_gene_median_tpm.gct.gz")
-GCT_GZ = Path("gtex_median_tpm_by_tissue.gct.gz")
-OUT = "gtex_tissue_specificity.csv"
+GCT_GZ = Path("data/gtex_median_tpm_by_tissue.gct.gz")
+OUT = "outputs/tables/gtex_tissue_specificity.csv"
 
 BRAIN_COLS = [
     "Brain_Amygdala", "Brain_Anterior_cingulate_cortex_BA24",

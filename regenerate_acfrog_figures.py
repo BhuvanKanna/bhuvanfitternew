@@ -45,12 +45,12 @@ RNG = np.random.default_rng(0)
 MIN_OBS = 30
 EXCLUDE_AT_OR_BELOW = -1.0
 
-WORM_CSV = "worm.csv"
-WORM_TABLE = "worm_fourparam_table_excluded_at_or_below_-1.csv"
-CEREB_CSV = "cerebellumlog2.csv"
-CEREB_TABLE = "cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv"
-GOI_JSON = "genes_of_interest.json"
-WORM_MAP_XLSX = "Supplementary Data 1 trunc 20250702.xlsx"
+WORM_CSV = "data/worm.csv"
+WORM_TABLE = "outputs/tables/worm_fourparam_table_excluded_at_or_below_-1.csv"
+CEREB_CSV = "data/cerebellumlog2.csv"
+CEREB_TABLE = "outputs/tables/cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv"
+GOI_JSON = "data/genes_of_interest.json"
+WORM_MAP_XLSX = "data/Supplementary Data 1 trunc 20250702.xlsx"
 
 # --- OE phenotype status, read from the proposal's Figure 2A -----------------
 # The mcOverexpression "Any" column of Fig 2A defines OE sensitivity (shaded =
@@ -155,10 +155,10 @@ def figure3(exclude=True):
                    re-histogramming, for comparison -> acfrog_figure3_worm_nofilter.png
     The fit_success / 0<TI<1 / n_obs>=30 validity filters still apply in both.
     """
-    table_csv = WORM_TABLE if exclude else "worm_fourparam_table.csv"
+    table_csv = WORM_TABLE if exclude else "outputs/tables/worm_fourparam_table.csv"
     floor = EXCLUDE_AT_OR_BELOW if exclude else -np.inf
-    out_png = ("acfrog_figure3_worm.png" if exclude
-               else "acfrog_figure3_worm_nofilter.png")
+    out_png = ("outputs/figures/acfrog_figure3_worm.png" if exclude
+               else "outputs/figures/acfrog_figure3_worm_nofilter.png")
     table = pd.read_csv(table_csv).set_index("gene")
 
     # OE phenotype groups come from Figure 2A (see build_worm_groups), NOT from
@@ -320,9 +320,9 @@ def figure3d(exclude=True):
     exclude=True  (default): filtered `> -1` table  -> acfrog_figure3d_worm.png
     exclude=False: non-excluded table               -> acfrog_figure3d_worm_nofilter.png
     """
-    table_csv = WORM_TABLE if exclude else "worm_fourparam_table.csv"
-    out_png = ("acfrog_figure3d_worm.png" if exclude
-               else "acfrog_figure3d_worm_nofilter.png")
+    table_csv = WORM_TABLE if exclude else "outputs/tables/worm_fourparam_table.csv"
+    out_png = ("outputs/figures/acfrog_figure3d_worm.png" if exclude
+               else "outputs/figures/acfrog_figure3d_worm_nofilter.png")
     table = pd.read_csv(table_csv).set_index("gene")
     sens_ids, tol_ids = build_worm_groups(table.index)
 
@@ -384,12 +384,12 @@ def figure3b_comparison(exclude=True):
                   -> acfrog_figure3b_comparison_nofilter.png
     """
     import re
-    table = pd.read_csv(WORM_TABLE if exclude else "worm_fourparam_table.csv"
+    table = pd.read_csv(WORM_TABLE if exclude else "outputs/tables/worm_fourparam_table.csv"
                         ).set_index("gene")
     filt_label = ("with > -1 exclusion filter" if exclude
                   else "WITHOUT the > -1 exclusion filter")
-    out_png = ("acfrog_figure3b_comparison.png" if exclude
-               else "acfrog_figure3b_comparison_nofilter.png")
+    out_png = ("outputs/figures/acfrog_figure3b_comparison.png" if exclude
+               else "outputs/figures/acfrog_figure3b_comparison_nofilter.png")
 
     def ti_of(tid):
         if tid in table.index:
@@ -564,7 +564,7 @@ def figure4():
                  "distributions\n(red = highest truncation index; ceilings are "
                  "weak in this dataset)", fontsize=10, y=0.995)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
-    fig.savefig("acfrog_figure4_cerebellum.png", dpi=150, bbox_inches="tight")
+    fig.savefig("outputs/figures/acfrog_figure4_cerebellum.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
     print("Fig 4: genes plotted =", len(master.columns))
 

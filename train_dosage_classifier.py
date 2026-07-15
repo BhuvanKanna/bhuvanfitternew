@@ -56,15 +56,15 @@ from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-TABLE = "cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv"
-SOURCE = "cerebellumlog2.csv"
-POS_FILE = "positive_genes.txt"
-TOL_FILE = "positiveANDnegativeControlGenes.csv"
+TABLE = "outputs/tables/cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv"
+SOURCE = "data/cerebellumlog2.csv"
+POS_FILE = "data/positive_genes.txt"
+TOL_FILE = "data/positiveANDnegativeControlGenes.csv"
 
-MODEL_OUT = "dosage_classifier.joblib"
-PRED_OUT = "cerebellum_dosage_classifier_pred.csv"
-METRICS_OUT = "dosage_classifier_metrics.json"
-FIG_OUT = "dosage_classifier_eval.png"
+MODEL_OUT = "outputs/models/dosage_classifier.joblib"
+PRED_OUT = "outputs/tables/cerebellum_dosage_classifier_pred.csv"
+METRICS_OUT = "outputs/models/dosage_classifier_metrics.json"
+FIG_OUT = "outputs/figures/dosage_classifier_eval.png"
 
 # Table-only features (no re-histogramming). Scale-free ratios cv & w_x0 are derived.
 BASE_FEATURES = [
@@ -85,7 +85,7 @@ def load_labelled(pos_file=POS_FILE):
     """Return (X, y, meta_df) for POS/TOL genes with one canonical fit_success row each.
 
     `pos_file` defaults to the 44-gene curated OMIM/G2P list; pass
-    "positive_genes_compiled.txt" for the 70-gene list expanded with
+    "data/positive_genes_compiled.txt" for the 70-gene list expanded with
     grant_genes.csv's mcOE-sensitive genes (see train_tissue_aware_classifier.py)."""
     sym = symbol_map()
     df = pd.read_csv(TABLE)

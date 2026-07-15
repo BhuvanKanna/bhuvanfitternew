@@ -42,7 +42,7 @@ from bhuvanfitter import BhuvanFitter
 from generate_fourparam_stats import COLUMNS, MIN_OBS, load_expression, git_push, _failed_row
 
 HERE = Path(__file__).resolve().parent
-INPUT_CSV = HERE / "worm.csv"
+INPUT_CSV = HERE / "data/worm.csv"
 
 # Expression values at or below this threshold are excluded before fitting.
 # This is the default; the --threshold CLI flag overrides it per run.
@@ -56,7 +56,7 @@ def output_csv_for(threshold, input_path: Path = INPUT_CSV) -> Path:
     (e.g. worm -> worm_fourparam_table_excluded_at_or_below_-1.csv, cerebellumlog2
     -> cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv). ``:g`` keeps
     -1.0 rendered as ``-1`` so int and float thresholds map to the same name."""
-    return HERE / f"{input_path.stem}_fourparam_table_excluded_at_or_below_{threshold:g}.csv"
+    return HERE / f"outputs/tables/{input_path.stem}_fourparam_table_excluded_at_or_below_{threshold:g}.csv"
 
 
 # Default output (threshold = EXCLUDE_AT_OR_BELOW); --threshold overrides it.

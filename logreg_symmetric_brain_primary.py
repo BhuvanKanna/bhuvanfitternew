@@ -27,13 +27,13 @@ from ablation_dosage_features import LEVEL, PURE_SHAPE
 from train_dosage_classifier import load_labelled, make_pipeline
 from train_tissue_aware_classifier import TISSUE, load_tissue_features
 
-POS_FILE = "positive_genes_compiled.txt"
+POS_FILE = "data/positive_genes_compiled.txt"
 # brain_is_top dropped: constant (=1) for every gene in this dataset by construction,
 # zero variance, cannot discriminate -- keeping it would just add noise/collinearity.
 TISSUE_NO_TOP = [f for f in TISSUE if f != "brain_is_top"]
 FEATURES = LEVEL + PURE_SHAPE + TISSUE_NO_TOP
-FIG_OUT = "logreg_symmetric_brain_primary_eval.png"
-COEF_OUT = "logreg_symmetric_brain_primary_coefficients.csv"
+FIG_OUT = "outputs/figures/logreg_symmetric_brain_primary_eval.png"
+COEF_OUT = "outputs/tables/logreg_symmetric_brain_primary_coefficients.csv"
 
 
 def build_data():

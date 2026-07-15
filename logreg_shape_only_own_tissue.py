@@ -25,9 +25,9 @@ from sklearn.model_selection import (RepeatedStratifiedKFold, StratifiedKFold,
 from ablation_dosage_features import PURE_SHAPE
 from train_dosage_classifier import make_pipeline
 
-TABLE = "gene_own_tissue_fourparam.csv"
-FIG_OUT = "logreg_shape_only_own_tissue_eval.png"
-COEF_OUT = "logreg_shape_only_own_tissue_coefficients.csv"
+TABLE = "outputs/tables/gene_own_tissue_fourparam.csv"
+FIG_OUT = "outputs/figures/logreg_shape_only_own_tissue_eval.png"
+COEF_OUT = "outputs/tables/logreg_shape_only_own_tissue_coefficients.csv"
 
 
 def load_data():

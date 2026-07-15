@@ -43,8 +43,8 @@ from sklearn.impute import SimpleImputer
 from ablation_dosage_features import PURE_SHAPE
 from train_dosage_classifier import make_pipeline
 
-TABLE = "gene_own_tissue_fourparam.csv"
-FIG_OUT = "histgbm_shape_tissue_eval.png"
+TABLE = "outputs/tables/gene_own_tissue_fourparam.csv"
+FIG_OUT = "outputs/figures/histgbm_shape_tissue_eval.png"
 
 # Baselines already established (logreg_shape_only_own_tissue.py), for direct comparison.
 BASELINE_RAW = 0.752

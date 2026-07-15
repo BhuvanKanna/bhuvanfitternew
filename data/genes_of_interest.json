@@ -1,0 +1,765 @@
+[
+  {
+    "row": 1,
+    "human_gene": "ADARB1",
+    "worm_gene": "adr-2",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w107_T20H4.4.1"
+    ]
+  },
+  {
+    "row": 2,
+    "human_gene": "ATP5PO",
+    "worm_gene": "atp-3",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w357_F27C1.7a.1",
+      "w358_F27C1.7a.2",
+      "w359_F27C1.7b.1"
+    ]
+  },
+  {
+    "row": 3,
+    "human_gene": "B3GALT5",
+    "worm_gene": "B0024.15",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w7274_B0024.15.1"
+    ]
+  },
+  {
+    "row": 4,
+    "human_gene": "CBS1",
+    "worm_gene": "cbs-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w14973_ZC373.1a.1",
+      "w14974_ZC373.1b.1"
+    ]
+  },
+  {
+    "row": 5,
+    "human_gene": "CCT8",
+    "worm_gene": "cct-8",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w23217_Y55F3AR.3b.1",
+      "w23215_Y55F3AR.3a.1",
+      "w23216_Y55F3AR.3a.2"
+    ]
+  },
+  {
+    "row": 6,
+    "human_gene": "CHAF1B",
+    "worm_gene": "chaf-2",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w23475_Y71G12B.1a.1",
+      "w23477_Y71G12B.1b.2",
+      "w23476_Y71G12B.1b.1"
+    ]
+  },
+  {
+    "row": 7,
+    "human_gene": "CLIC6",
+    "worm_gene": "D1086.9",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w25188_D1086.20"
+    ]
+  },
+  {
+    "row": 8,
+    "human_gene": "CLIC6",
+    "worm_gene": "H39E23.3",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": []
+  },
+  {
+    "row": 9,
+    "human_gene": "COL18A1",
+    "worm_gene": "cle-1",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w730_C36B1.1b.1",
+      "w732_C36B1.1d.1",
+      "w731_C36B1.1c.1"
+    ]
+  },
+  {
+    "row": 10,
+    "human_gene": "DIP2A",
+    "worm_gene": "dip-2",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w18715_F28B3.4d.1",
+      "w18718_F28B3.4j.1",
+      "w18717_F28B3.4g.1",
+      "w18714_F28B3.4b.1",
+      "w18716_F28B3.4f.1"
+    ]
+  },
+  {
+    "row": 11,
+    "human_gene": "DONSON",
+    "worm_gene": "dnsn-1",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w16737_C24H12.5c.2",
+      "w16736_C24H12.5b.2",
+      "w16738_C24H12.5e.1"
+    ]
+  },
+  {
+    "row": 12,
+    "human_gene": "DOPEY2",
+    "worm_gene": "pad-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w4351_Y18D10A.13.2",
+      "w4350_Y18D10A.13.1"
+    ]
+  },
+  {
+    "row": 13,
+    "human_gene": "DSCAM",
+    "worm_gene": "igcm-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w19084_F39H12.4.1",
+      "w19085_F39H12.4.2"
+    ]
+  },
+  {
+    "row": 14,
+    "human_gene": "DYRK1A",
+    "worm_gene": "mbk-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w3461_T04C10.1.2",
+      "w3460_T04C10.1.1"
+    ]
+  },
+  {
+    "row": 15,
+    "human_gene": "EVA1C",
+    "worm_gene": "eva-1",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w9807_F32A7.3a.2",
+      "w9808_F32A7.3c.1",
+      "w9806_F32A7.3a.1"
+    ]
+  },
+  {
+    "row": 16,
+    "human_gene": "GART",
+    "worm_gene": "F38B6.4",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w19056_F38B6.4.1",
+      "w19057_F38B6.4.2"
+    ]
+  },
+  {
+    "row": 17,
+    "human_gene": "HSPA13",
+    "worm_gene": "stc-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w5931_F54C9.2.1"
+    ]
+  },
+  {
+    "row": 18,
+    "human_gene": "ITGB2",
+    "worm_gene": "pat-3",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w4406_ZK1058.2.1",
+      "w4407_ZK1058.2.2"
+    ]
+  },
+  {
+    "row": 19,
+    "human_gene": "ITSN1",
+    "worm_gene": "itsn-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w6052_Y116A8C.36b.1",
+      "w6054_Y116A8C.36e.1",
+      "w6051_Y116A8C.36a.2",
+      "w6050_Y116A8C.36a.1",
+      "w6053_Y116A8C.36d.1"
+    ]
+  },
+  {
+    "row": 20,
+    "human_gene": "JAM2",
+    "worm_gene": "zig-10",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w21903_T25D10.2b.1"
+    ]
+  },
+  {
+    "row": 21,
+    "human_gene": "KCNJ6",
+    "worm_gene": "irk-2",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w2871_M02A10.2b.1",
+      "w2874_M02A10.2f.1",
+      "w2872_M02A10.2c.1",
+      "w2873_M02A10.2d.1"
+    ]
+  },
+  {
+    "row": 22,
+    "human_gene": "KCNJ15",
+    "worm_gene": "irk-2",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w2871_M02A10.2b.1",
+      "w2874_M02A10.2f.1",
+      "w2872_M02A10.2c.1",
+      "w2873_M02A10.2d.1"
+    ]
+  },
+  {
+    "row": 23,
+    "human_gene": "LTN1",
+    "worm_gene": "Y54E10A.11",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w23075_Y54E10A.11.2",
+      "w23074_Y54E10A.11.1"
+    ]
+  },
+  {
+    "row": 24,
+    "human_gene": "MRPL39",
+    "worm_gene": "mrpl-39",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w24654_Y46H3A.7a.1"
+    ]
+  },
+  {
+    "row": 25,
+    "human_gene": "MRPS6",
+    "worm_gene": "mrps-6",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w21105_R12E2.12.2"
+    ]
+  },
+  {
+    "row": 26,
+    "human_gene": "N6AMT1",
+    "worm_gene": "mtq-2",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w17044_C33C12.9.1"
+    ]
+  },
+  {
+    "row": 27,
+    "human_gene": "NCAM2",
+    "worm_gene": "ncam-1",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w17995_F02G3.1a.1"
+    ]
+  },
+  {
+    "row": 28,
+    "human_gene": "PAXBP1",
+    "worm_gene": "F43G9.12",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w10233_F43G9.12a.1"
+    ]
+  },
+  {
+    "row": 29,
+    "human_gene": "PCBP3",
+    "worm_gene": "pes-4",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w4479_Y119D3B.17.1",
+      "w4480_Y119D3B.17.2"
+    ]
+  },
+  {
+    "row": 30,
+    "human_gene": "PDXK",
+    "worm_gene": "pdxk-1",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w19947_F57C9.1b.1",
+      "w19946_F57C9.1a.2",
+      "w19948_F57C9.1c.1",
+      "w19945_F57C9.1a.1"
+    ]
+  },
+  {
+    "row": 31,
+    "human_gene": "PFKL",
+    "worm_gene": "pfk-1.1",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w23549_Y71H10A.1a.1"
+    ]
+  },
+  {
+    "row": 32,
+    "human_gene": "POFUT2",
+    "worm_gene": "pad-2",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w11466_K10G9.3b.1"
+    ]
+  },
+  {
+    "row": 33,
+    "human_gene": "POTED",
+    "worm_gene": "ikb-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w2773_C04F12.3.1"
+    ]
+  },
+  {
+    "row": 34,
+    "human_gene": "RCAN1",
+    "worm_gene": "rcan-1",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w5074_F54E7.7.1"
+    ]
+  },
+  {
+    "row": 35,
+    "human_gene": "RRP1",
+    "worm_gene": "rrp-1",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w8486_C47E12.7.2"
+    ]
+  },
+  {
+    "row": 36,
+    "human_gene": "RRP1B",
+    "worm_gene": "rrp-1",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w8486_C47E12.7.2"
+    ]
+  },
+  {
+    "row": 37,
+    "human_gene": "RUNX1",
+    "worm_gene": "rnt-1",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w5204_B0414.2.1"
+    ]
+  },
+  {
+    "row": 38,
+    "human_gene": "SCAF4",
+    "worm_gene": "nrd-1",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": true,
+    "lof_dev": true,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w17773_D1007.7.1",
+      "w17774_D1007.7.2"
+    ]
+  },
+  {
+    "row": 39,
+    "human_gene": "SETD4",
+    "worm_gene": "set-29",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w23722_Y92H12BR.6.1"
+    ]
+  },
+  {
+    "row": 40,
+    "human_gene": "SH3BGR",
+    "worm_gene": "Y105E8A.1",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w14755_Y105E8A.1a.1",
+      "w14756_Y105E8A.1b.1"
+    ]
+  },
+  {
+    "row": 41,
+    "human_gene": "SIM2",
+    "worm_gene": "hlh-34",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": []
+  },
+  {
+    "row": 42,
+    "human_gene": "SOD1",
+    "worm_gene": "sod-1",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w5717_C15F1.7a.1"
+    ]
+  },
+  {
+    "row": 43,
+    "human_gene": "SOD1",
+    "worm_gene": "sod-5",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": []
+  },
+  {
+    "row": 44,
+    "human_gene": "SON",
+    "worm_gene": "D1037.1",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w17801_D1037.1.1"
+    ]
+  },
+  {
+    "row": 45,
+    "human_gene": "SYNJ1",
+    "worm_gene": "unc-26",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": true,
+    "lof_dev": false,
+    "lof_behavior": true,
+    "transcript_ids": [
+      "w6669_JC8.10b.1",
+      "w6670_JC8.10c.1",
+      "w6668_JC8.10a.2"
+    ]
+  },
+  {
+    "row": 46,
+    "human_gene": "TMEM50B",
+    "worm_gene": "Y74C10AL.2",
+    "mcOE_any": true,
+    "mcOE_dev": false,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w23644_Y74C10AL.2.2",
+      "w23643_Y74C10AL.2.1"
+    ]
+  },
+  {
+    "row": 47,
+    "human_gene": "TRAPPC10",
+    "worm_gene": "trpp-10",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": true,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w23468_Y71G12A.2a.1",
+      "w23471_Y71G12A.2c.2",
+      "w23470_Y71G12A.2c.1",
+      "w23469_Y71G12A.2b.1"
+    ]
+  },
+  {
+    "row": 48,
+    "human_gene": "UBE2G2",
+    "worm_gene": "ubc-14",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w6533_Y87G2A.9.2",
+      "w6532_Y87G2A.9.1"
+    ]
+  },
+  {
+    "row": 49,
+    "human_gene": "USP25",
+    "worm_gene": "K02C4.3",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w11149_K02C4.3b.1",
+      "w11152_K02C4.3e.1",
+      "w11150_K02C4.3c.1",
+      "w11148_K02C4.3a.1",
+      "w11151_K02C4.3d.1"
+    ]
+  },
+  {
+    "row": 50,
+    "human_gene": "USP28",
+    "worm_gene": "K02C4.3",
+    "mcOE_any": true,
+    "mcOE_dev": true,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w11149_K02C4.3b.1",
+      "w11152_K02C4.3e.1",
+      "w11150_K02C4.3c.1",
+      "w11148_K02C4.3a.1",
+      "w11151_K02C4.3d.1"
+    ]
+  },
+  {
+    "row": 51,
+    "human_gene": "WDR4",
+    "worm_gene": "wdr-4",
+    "mcOE_any": false,
+    "mcOE_dev": false,
+    "mcOE_behavior": false,
+    "lof_any": false,
+    "lof_dev": false,
+    "lof_behavior": false,
+    "transcript_ids": [
+      "w23783_Y102E9.2a.1",
+      "w23784_Y102E9.2b.2"
+    ]
+  }
+]

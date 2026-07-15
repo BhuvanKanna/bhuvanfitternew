@@ -24,8 +24,8 @@ import pandas as pd
 from regenerate_acfrog_figures import WORM_MAP_XLSX
 from regenerate_grant_figures import _worm_table
 
-SRC = "grant_genes.csv"
-OUT = "genes_of_interest.json"
+SRC = "data/grant_genes.csv"
+OUT = "data/genes_of_interest.json"
 
 
 def as_bool(cell):

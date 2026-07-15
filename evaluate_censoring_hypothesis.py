@@ -46,8 +46,8 @@ from train_dosage_classifier import load_labelled as load_labelled_human
 from train_dosage_classifier import make_pipeline
 
 K_NEIGHBORS = 5
-FIG_OUT = "censoring_hypothesis_eval.png"
-SUMMARY_OUT = "censoring_hypothesis_summary.csv"
+FIG_OUT = "outputs/figures/censoring_hypothesis_eval.png"
+SUMMARY_OUT = "outputs/tables/censoring_hypothesis_summary.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ def load_labelled_worm():
 
     # No-refit skew/kurt/mean/std: pull raw values from worm.csv for just
     # these genes (mirrors the cerebellum notebook's build_shape_features).
-    master = load_expression("worm.csv")
+    master = load_expression("data/worm.csv")
     means, stds, sks, kus = [], [], [], []
     for g in lab["gene"]:
         v = master[g].astype(float).values

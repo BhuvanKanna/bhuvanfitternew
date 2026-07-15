@@ -46,8 +46,8 @@ BRAIN_KEYWORDS = ["brain", "cerebell", "cortex", "hippocamp", "amygdala",
                  "hypothalamus", "striatum", "thalamus", "cerebral", "neuron",
                  "spinal cord", "pons", "medulla", "basal ganglia"]
 
-SUMMARY_OUT = "enrichr_tissue_summary.csv"
-FIG_OUT = "enrichr_tissue_comparison.png"
+SUMMARY_OUT = "outputs/tables/enrichr_tissue_summary.csv"
+FIG_OUT = "outputs/figures/enrichr_tissue_comparison.png"
 
 
 def submit_list(genes, description):
@@ -141,7 +141,7 @@ def run_list(name, genes, results):
         except Exception as e:
             print(f"  {lib}: FAILED ({e})")
             continue
-        df.to_csv(f"enrichr_{name}_{lib}.csv", index=False)
+        df.to_csv(f"outputs/tables/enrichr_{name}_{lib}.csv", index=False)
         top = df.iloc[0]
         brain_hit = top_brain_hit(df, top_n=50)
         print(f"  {lib:24s} top term: {top['term'][:50]:50s} adj_p={top['adj_pvalue']:.2e}"
@@ -162,7 +162,7 @@ def run_list(name, genes, results):
 def main():
     smoke_test()
 
-    pos = sorted({l.strip() for l in open("positive_genes_compiled.txt") if l.strip()})
+    pos = sorted({l.strip() for l in open("data/positive_genes_compiled.txt") if l.strip()})
     tol = sorted(load_tol())
     ceiling, non_ceiling = build_ceiling_groups()
     print(f"POS={len(pos)}  TOL={len(tol)}  ceiling={len(ceiling)}  non_ceiling={len(non_ceiling)}")

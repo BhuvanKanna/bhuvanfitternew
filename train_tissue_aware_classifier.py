@@ -35,13 +35,13 @@ from ablation_dosage_features import LEVEL, PURE_SHAPE
 from train_dosage_classifier import (TABLE, add_derived, load_labelled, make_pipeline,
                                      symbol_map)
 
-POS_FILE = "positive_genes_compiled.txt"
-TISSUE_TABLE = "gtex_tissue_specificity.csv"
+POS_FILE = "data/positive_genes_compiled.txt"
+TISSUE_TABLE = "outputs/tables/gtex_tissue_specificity.csv"
 
-MODEL_OUT = "dosage_classifier_tissue_aware.joblib"
-PRED_OUT = "dosage_score_tissue_aware.csv"
-METRICS_OUT = "dosage_classifier_tissue_aware_metrics.json"
-FIG_OUT = "dosage_classifier_tissue_aware_eval.png"
+MODEL_OUT = "outputs/models/dosage_classifier_tissue_aware.joblib"
+PRED_OUT = "outputs/tables/dosage_score_tissue_aware.csv"
+METRICS_OUT = "outputs/models/dosage_classifier_tissue_aware_metrics.json"
+FIG_OUT = "outputs/figures/dosage_classifier_tissue_aware_eval.png"
 
 TISSUE = ["brain_cerebellum", "brain_mean", "brain_max", "nonbrain_mean",
          "nonbrain_max", "log2fc_brain_vs_nonbrain", "tau", "brain_is_top"]
@@ -216,7 +216,7 @@ def main():
     genome = genome.dropna(subset=FEATURES)
     genome["dosage_score"] = tuned.predict_proba(genome[FEATURES])[:, 1]
     pos = {l.strip() for l in open(POS_FILE) if l.strip()}
-    tol_syms = set(pd.read_csv("positiveANDnegativeControlGenes.csv", header=None)[0]
+    tol_syms = set(pd.read_csv("data/positiveANDnegativeControlGenes.csv", header=None)[0]
                   .dropna().astype(str).str.strip()) - {"geneDUPtol"}
     genome["label"] = np.where(genome["symbol"].isin(pos), "POS",
                               np.where(genome["symbol"].isin(tol_syms), "TOL", ""))
