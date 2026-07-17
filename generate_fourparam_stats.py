@@ -10,15 +10,27 @@ The ``BhuvanFitter`` class is imported from ``bhuvanfitter.py``, the single
 source of truth for the fitting logic. The output table has one row per gene
 with exactly the columns ``fit("fourparam")`` returns.
 
+This is the **unfiltered** generator: every finite expression value is kept
+(no ``<= threshold`` exclusion -- see ``generate_fourparam_stats_excluded.py``
+for that variant). It is dataset-agnostic via ``--input`` / ``--id-col`` /
+``--drop-col`` (the shared ``load_expression``); the output filename is derived
+from the input stem as ``<stem>_fourparam_table.csv`` so datasets never collide
+(worm -> ``worm_fourparam_table.csv``, GTEx cerebellum ->
+``cerebellumlog2_v8_fourparam_table.csv``).
+
 Usage
 -----
-    python generate_fourparam_stats.py            # fit all genes, write CSV, push
+    python generate_fourparam_stats.py            # fit all worm genes, write CSV, push
     python generate_fourparam_stats.py --no-push  # write CSV but skip the git push
     python generate_fourparam_stats.py --limit 50 # only the first 50 genes (testing)
+    python generate_fourparam_stats.py --input data/cerebellumlog2_v8.csv \
+        --id-col Name --drop-col Description --jobs 11 --no-push  # GTEx cerebellum
 """
 from __future__ import annotations
 
 import argparse
+import multiprocessing as mp
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +43,13 @@ from bhuvanfitter import BhuvanFitter
 HERE = Path(__file__).resolve().parent
 INPUT_CSV = HERE / "data/worm.csv"
 OUTPUT_CSV = HERE / "outputs/tables/worm_fourparam_table.csv"
+
+
+def output_csv_for(input_path: Path) -> Path:
+    """Output path whose name is derived from the input dataset stem:
+    ``<input stem>_fourparam_table.csv`` (worm -> worm_fourparam_table.csv,
+    cerebellumlog2_v8 -> cerebellumlog2_v8_fourparam_table.csv)."""
+    return HERE / f"outputs/tables/{input_path.stem}_fourparam_table.csv"
 
 # The exact columns returned by BhuvanFitter.fit("fourparam"), in order.
 COLUMNS = [
@@ -82,31 +101,61 @@ def _failed_row(gene: str, n_obs: int) -> dict:
     return row
 
 
-def build_table(df: pd.DataFrame, BhuvanFitter, limit: int | None = None) -> pd.DataFrame:
-    """Fit every gene (column) and collect one results row per gene."""
+# Set in each worker process by _init_worker so _fit_one can read it without
+# re-pickling it per gene.
+_WORKER_MAX_NFEV: int = 10_000
+
+
+def _init_worker(max_nfev: int) -> None:
+    global _WORKER_MAX_NFEV
+    _WORKER_MAX_NFEV = max_nfev
+
+
+def _fit_one(item) -> dict:
+    """Fit a single gene given ``(gene_name, values_array)``. Module-level and
+    picklable so it can run in a multiprocessing pool. Keeps every finite value
+    (unfiltered); returns a ``_failed_row`` (never raises) on too-few
+    observations or a non-converging fit."""
+    gene, values = item
+    data = np.asarray(values, dtype=float)
+    data = data[np.isfinite(data)]
+    n_obs = int(data.size)
+
+    if n_obs < MIN_OBS:
+        return _failed_row(gene, n_obs)
+    try:
+        bf = BhuvanFitter(data, gene_name=gene)
+        return bf.fit("fourparam", max_nfev=_WORKER_MAX_NFEV)
+    except RuntimeError:
+        return _failed_row(gene, n_obs)
+
+
+def build_table(df: pd.DataFrame, BhuvanFitter, limit: int | None = None,
+                max_nfev: int = 10_000, jobs: int = 1) -> pd.DataFrame:
+    """Fit every gene (column) and collect one results row per gene.
+
+    ``jobs`` worker processes fit genes in parallel (genes are independent);
+    ``jobs=1`` runs in-process (bit-identical, ``imap`` preserves order).
+    ``max_nfev`` caps each curve_fit."""
     genes = list(df.columns)
     if limit is not None:
         genes = genes[:limit]
+    total = len(genes)
+    items = ((gene, df[gene].to_numpy(dtype=float)) for gene in genes)
 
     records = []
-    total = len(genes)
-    for i, gene in enumerate(genes, 1):
-        data = df[gene].astype(float).values
-        data = data[np.isfinite(data)]
-        n_obs = int(data.size)
-
-        if n_obs < MIN_OBS:
-            records.append(_failed_row(gene, n_obs))
-        else:
-            try:
-                bf = BhuvanFitter(data, gene_name=gene)
-                records.append(bf.fit("fourparam"))
-            except RuntimeError as exc:
-                print(f"  warn: fit failed for '{gene}': {exc}", file=sys.stderr)
-                records.append(_failed_row(gene, n_obs))
-
-        if i % 2000 == 0 or i == total:
-            print(f"  fit {i}/{total} genes")
+    if jobs <= 1:
+        _init_worker(max_nfev)
+        for i, gene in enumerate(genes, 1):
+            records.append(_fit_one((gene, df[gene].to_numpy(dtype=float))))
+            if i % 2000 == 0 or i == total:
+                print(f"  fit {i}/{total} genes", flush=True)
+    else:
+        with mp.Pool(jobs, initializer=_init_worker, initargs=(max_nfev,)) as pool:
+            for i, rec in enumerate(pool.imap(_fit_one, items, chunksize=64), 1):
+                records.append(rec)
+                if i % 2000 == 0 or i == total:
+                    print(f"  fit {i}/{total} genes", flush=True)
 
     return pd.DataFrame.from_records(records, columns=COLUMNS)
 
@@ -137,27 +186,48 @@ def main() -> None:
                         help="Write the CSV but do not commit/push to GitHub.")
     parser.add_argument("--limit", type=int, default=None,
                         help="Only fit the first N genes (for quick testing).")
+    parser.add_argument("--input", type=Path, default=INPUT_CSV,
+                        help="Input CSV (genes as rows). Defaults to the worm "
+                             "Supplementary Data 1 file. A non-default input gets "
+                             "its stem prefixed onto the output filename.")
+    parser.add_argument("--id-col", type=str, default="strain",
+                        help="Gene-identifier column in the input (default: strain "
+                             "for the worm file; use e.g. Name for the GTEx data).")
+    parser.add_argument("--drop-col", action="append", default=[], dest="drop_cols",
+                        metavar="COL",
+                        help="Extra non-sample column to drop before transposing "
+                             "(repeatable, e.g. --drop-col Description).")
+    parser.add_argument("--jobs", type=int, default=1,
+                        help="Worker processes to fit genes in parallel (default: 1). "
+                             "Genes are independent, so this scales near-linearly.")
+    parser.add_argument("--max-nfev", type=int, default=10_000, dest="max_nfev",
+                        help="curve_fit evaluation cap per gene (default: 10000).")
     args = parser.parse_args()
 
-    print(f"Reading {INPUT_CSV.name} ...")
-    df = load_expression(INPUT_CSV)
-    print(f"  {df.shape[1]} genes x {df.shape[0]} strains")
+    input_csv = args.input
+    output_csv = output_csv_for(input_csv)
 
-    print("Fitting genes ...")
-    table = build_table(df, BhuvanFitter, limit=args.limit)
+    print(f"Reading {input_csv.name} ...")
+    df = load_expression(input_csv, id_col=args.id_col, drop_cols=args.drop_cols)
+    print(f"  {df.shape[1]} genes x {df.shape[0]} samples")
+
+    jobs = args.jobs if args.jobs > 0 else (os.cpu_count() or 1)
+    print(f"Fitting genes (unfiltered, max_nfev={args.max_nfev}, jobs={jobs}) ...")
+    table = build_table(df, BhuvanFitter, limit=args.limit,
+                        max_nfev=args.max_nfev, jobs=jobs)
     n_ok = int(table["fit_success"].sum())
     print(f"  {n_ok}/{len(table)} genes fit successfully")
 
-    table.to_csv(OUTPUT_CSV, index=False)
-    print(f"Wrote {OUTPUT_CSV.name} ({len(table)} rows, {len(COLUMNS)} columns)")
+    table.to_csv(output_csv, index=False)
+    print(f"Wrote {output_csv.name} ({len(table)} rows, {len(COLUMNS)} columns)")
 
     if args.no_push:
         print("--no-push set; skipping git push.")
         return
 
     git_push(
-        HERE, OUTPUT_CSV,
-        "Update worm_fourparam_table.csv (regenerated from worm.csv)",
+        HERE, output_csv,
+        f"Update {output_csv.name} (regenerated from {input_csv.name})",
     )
 
 

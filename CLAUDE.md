@@ -12,7 +12,7 @@ A small toolkit that analyzes per-gene expression distributions from a *C. elega
 
 Scripts, notebooks, `bhuvanfitter.py`, and `CLAUDE.md` live at the repo root — every command below is still `python some_script.py` run from the root, no path prefix needed for the script itself. Everything the scripts *read or write* is sorted into three folders:
 
-- **`data/`** — source/reference inputs the scripts never write to: `worm.csv`, `cerebellumlog2.csv` (both LFS), the GTEx median/per-sample/sample-attribute files, the Collins 2022 dosage scores, the curated positive/TOL/ClinGen gene lists, `genes_of_interest.json`, `grant_genes.csv`, the xlsx gene-name map, and the ortholog cache TSVs.
+- **`data/`** — source/reference inputs the scripts never write to: `worm.csv`, `cerebellumlog2.csv`, `cerebellumlog2_v8.csv` (all LFS), the GTEx median/per-sample/sample-attribute files, the Collins 2022 dosage scores, the curated positive/TOL/ClinGen gene lists, `genes_of_interest.json`, `grant_genes.csv`, the xlsx gene-name map, and the ortholog cache TSVs. (`cerebellumlog2_v8.csv` is the GTEx **v8** cerebellum log2 matrix; `cerebellumlog2.csv` is v10 — different Ensembl versions and sample sets, kept side by side.)
 - **`outputs/tables/`** — every generated CSV/JSON (fourparam tables, predictions, ablations, Enrichr results, coefficients, `peaks.json`).
 - **`outputs/figures/`** — every generated PNG.
 - **`outputs/models/`** — saved classifiers (`.joblib`) and their paired `*_metrics.json`.
@@ -24,7 +24,7 @@ When reading a filename anywhere below without a directory prefix, resolve it ag
 
 This repo (`BhuvanKanna/bhuvanfitternew`, private) is the centralized home for the code **and** the data. **Commit and push every file you change to GitHub as soon as the work in a turn is finished — do this proactively, without being asked.** Do not batch changes for "later." Do not auto-push pre-existing working-tree changes you did not make yourself (e.g. a deletion of a file the user is actively editing) — surface those and confirm first.
 
-Git LFS note: the large source matrices — `worm.csv` (~64 MB, worm; originally `Supplementary Data 1_csv.csv`) and `cerebellumlog2.csv` (~203 MB, GTEx cerebellum) — are tracked via **Git LFS** (see `.gitattributes`). Anyone cloning must run `git lfs install` once or these CSVs will be pointer stubs. LFS lock-verify can intermittently time out on push; just retry the `git push`. (The generated per-gene tables, e.g. `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`, are committed as normal files.)
+Git LFS note: the large source matrices — `worm.csv` (~64 MB, worm; originally `Supplementary Data 1_csv.csv`), `cerebellumlog2.csv` (~203 MB, GTEx **v10** cerebellum), `data/cerebellumlog2_v8.csv` (~176 MB, GTEx **v8** cerebellum, see below), and the raw `gene_tpm_brain_cerebellum_v8.gct` (~99 MB) — are tracked via **Git LFS** (see `.gitattributes`). Anyone cloning must run `git lfs install` once or these files will be pointer stubs. LFS lock-verify can intermittently time out on push; just retry the `git push`. (The generated per-gene tables, e.g. `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`, are committed as normal files.)
 
 ## Keep this file current
 
@@ -51,11 +51,21 @@ data/worm.csv                         bhuvanfitter.py
 
 - Genes with `< 10` finite observations, or whose `curve_fit` fails to converge, are written as a row with `fit_success=False` and NaN metrics rather than skipped or crashing.
 - `generate_fourparam_stats.py` has a module-level `COLUMNS` list that **must stay identical to the keys `BhuvanFitter.fit("fourparam")` returns** (same names, same order). If you add/rename a key in the fit dict, update `COLUMNS`.
+- **`generate_fourparam_stats.py` is the *unfiltered* generator (keeps every finite value; no exclusion) and is now dataset-agnostic**, mirroring the excluded variant: it takes `--input PATH` / `--id-col COL` / `--drop-col COL` (repeatable) / `--jobs N` / `--max-nfev N` / `--limit N` / `--no-push`, and its **output filename is derived from the input stem** via `output_csv_for(input_path)` → `<input stem>_fourparam_table.csv` (worm → `worm_fourparam_table.csv`, GTEx v8 → `cerebellumlog2_v8_fourparam_table.csv`). Parallelism mirrors the excluded variant (module-level picklable `_fit_one`, `_init_worker` caches `max_nfev`, `imap` order-preserving → `--jobs N` is bit-identical to `--jobs 1`); the only difference from the excluded variant is that `_fit_one` does **not** drop `<= threshold` values. Defaults (`--input data/worm.csv --id-col strain --jobs 1`) reproduce the original worm behaviour exactly.
 - `load_expression(csv_path, id_col="strain", drop_cols=())` is the shared loader (genes as rows → transposed to samples × genes). It is **dataset-agnostic**: `id_col` names the gene-identifier column (the worm file's first column is mislabeled `strain` but holds gene names; GTEx uses `Name`) and `drop_cols` discards extra non-sample index columns (e.g. GTEx's `Description`). Defaults reproduce the original worm behaviour exactly.
 
 A near-identical variant, `generate_fourparam_stats_excluded.py`, fits the same 4-parameter Gaussian but **drops every expression value `<= EXCLUDE_AT_OR_BELOW`** (default `-1`) from each gene's array before fitting (so `n_obs` shrinks and a gene can fall below `MIN_OBS`). It imports `COLUMNS`, `MIN_OBS`, `load_expression`, `git_push`, and `_failed_row` from `generate_fourparam_stats.py` (single source of truth — only `build_table` / the parallel worker, the threshold constant `EXCLUDE_AT_OR_BELOW`, and output naming differ). **The output filename encodes the input dataset and the threshold** via `output_csv_for(threshold, input_path)` — `<input stem>_fourparam_table_excluded_at_or_below_<threshold>.csv` — so datasets never collide: worm → `worm_fourparam_table_excluded_at_or_below_-1.csv`, GTEx → `cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv`. The earlier worm `-0.75` run is preserved as `worm_fourparam_table_excluded_at_or_below_-0.75.csv`.
 
   - **Flags:** `--threshold T` (exclusion cutoff, default `-1`), `--limit N`, `--no-push`, plus `--input PATH` / `--id-col COL` / `--drop-col COL` (repeatable) for targeting other datasets through the generalized `load_expression`, and **`--jobs N`** (parallel worker processes; genes are independent so this scales near-linearly) and **`--max-nfev N`** (curve_fit cap, forwarded to `fit("fourparam")`). Parallelism uses a `multiprocessing.Pool` whose workers cache the threshold / `max_nfev` via `_init_worker`; the module-level `_fit_one((gene, values))` worker is picklable and `imap` preserves input order, so a parallel run is **bit-identical** to `--jobs 1`. The GTEx cerebellum table was generated with `--input cerebellumlog2.csv --id-col Name --drop-col Description --threshold -1 --jobs 11 --max-nfev 2000`.
+
+### GTEx v8 cerebellum (`convert_cerebellum_gct_to_log2.py` + the three v8 tables)
+
+A second, independent cerebellum dataset alongside the original v10 one: the GTEx **v8** brain-cerebellum `gene_tpm` matrix. Source is the raw `gene_tpm_brain_cerebellum_v8.gct` (56,200 genes × 241 samples; GCT 1.3, columns `id  Name  Description  <samples>`; **linear TPM**), committed via LFS.
+
+- **`convert_cerebellum_gct_to_log2.py`** converts the raw GCT → `data/cerebellumlog2_v8.csv` (LFS). The transform is **`log2(TPM + 1) − 1`** applied elementwise — the *exact* transform the original `data/cerebellumlog2.csv` was built with (verified: integer TPMs 0,1,2,3,… map to −1, 0, 0.585, 1, …, so **TPM = 0 lands on the −1 floor with no clamping** and every value is `>= −1` by construction). The `id` column is dropped; `Name` (ENSG) + `Description` (symbol) lead, matching `cerebellumlog2.csv`. Run: `python convert_cerebellum_gct_to_log2.py` (defaults to the v8 file → `data/cerebellumlog2_v8.csv`).
+- **Three v8 fourparam tables were generated** (both via `--input data/cerebellumlog2_v8.csv --id-col Name --drop-col Description --jobs 11 --max-nfev 2000`):
+  - **Unfiltered** → `outputs/tables/cerebellumlog2_v8_fourparam_table.csv` (`generate_fourparam_stats.py`; all 241 samples kept per gene, `n_obs = 241` throughout; **55,122/56,200 fit**).
+  - **Excluded ≤ −1** → `outputs/tables/cerebellumlog2_v8_fourparam_table_excluded_at_or_below_-1.csv` (`generate_fourparam_stats_excluded.py --threshold -1`; drops the exact-`−1` = zero-TPM samples, so `n_obs` shrinks and fewer genes clear `MIN_OBS`; **43,428/56,200 fit**). Because `log2(TPM+1)−1` hits `−1` only at TPM = 0, "at or below −1" drops exactly the undetected-expression samples.
 
 A parallel pipeline produces the peak dictionary:
 
@@ -134,6 +144,15 @@ python generate_fourparam_stats_excluded.py --limit 50 --no-push
 python generate_fourparam_stats_excluded.py --input data/cerebellumlog2.csv \
     --id-col Name --drop-col Description --threshold -1 --jobs 11 --max-nfev 2000 --no-push
     # -> outputs/tables/cerebellumlog2_fourparam_table_excluded_at_or_below_-1.csv
+
+# GTEx v8 cerebellum: convert the raw GCT, then the unfiltered + excluded(-1) tables
+python convert_cerebellum_gct_to_log2.py                       # -> data/cerebellumlog2_v8.csv (log2(TPM+1)-1)
+python generate_fourparam_stats.py --input data/cerebellumlog2_v8.csv \
+    --id-col Name --drop-col Description --jobs 11 --max-nfev 2000 --no-push
+    # -> outputs/tables/cerebellumlog2_v8_fourparam_table.csv (unfiltered)
+python generate_fourparam_stats_excluded.py --input data/cerebellumlog2_v8.csv \
+    --id-col Name --drop-col Description --threshold -1 --jobs 11 --max-nfev 2000 --no-push
+    # -> outputs/tables/cerebellumlog2_v8_fourparam_table_excluded_at_or_below_-1.csv
 
 # Peak dictionary — same flags (all genes + push / sanity subset / local only)
 python generate_peaks.py
