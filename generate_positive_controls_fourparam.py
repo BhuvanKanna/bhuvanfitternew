@@ -49,11 +49,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import subprocess
+
 from bhuvanfitter import BhuvanFitter
-from generate_fourparam_stats import COLUMNS, MIN_OBS, _failed_row, git_push
+from generate_fourparam_stats import COLUMNS, MIN_OBS, _failed_row
 
 HERE = Path(__file__).resolve().parent
-TABLES = HERE / "outputs/tables"
+TABLES = HERE / "outputs/positive_controls"
 MAX_NFEV = 2000  # same cap used for the genome-wide cerebellum runs
 
 # Human positive-control symbols, in the order the user listed them.
@@ -200,8 +202,28 @@ def main() -> None:
     if args.no_push:
         print("\n--no-push set; skipping git push.")
         return
-    for out in written:
-        git_push(HERE, out, f"Add {out.name} (positive-control fourparam table)")
+    push_tables(written)
+
+
+def push_tables(paths: list[Path]) -> None:
+    """Stage the given tables (by their real repo-relative paths -- they live in a
+    subfolder, so a basename-only ``git add`` would miss them), commit, and push.
+    Only these files are staged, so unrelated working-tree changes are untouched."""
+    def run(*args: str) -> str:
+        r = subprocess.run(["git", "-C", str(HERE), *args],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"`git {' '.join(args)}` failed:\n{r.stderr.strip()}")
+        return r.stdout
+
+    rel = [str(p.relative_to(HERE).as_posix()) for p in paths]
+    run("add", *rel)
+    if not run("status", "--porcelain", *rel).strip():
+        print("No table changes to commit or push.")
+        return
+    run("commit", "-m", "Update positive-control fourparam tables")
+    run("push", "origin", "HEAD")
+    print(f"Pushed {len(rel)} positive-control tables to origin.")
 
 
 if __name__ == "__main__":
