@@ -19,7 +19,15 @@ Six tables are written (2 filters x 3 datasets):
     positive_controls_cerebellumlog2_v8_fourparam_table.csv
     positive_controls_cerebellumlog2_v8_fourparam_table_excluded_at_or_below_-1.csv
 
-Each row is prefixed with a ``symbol`` column (the human positive-control gene)
+Plus two **raw per-sample expression** tables (cerebellum only -- worm lacks an
+ortholog for 3 of the 4 controls): the exact rows for the control ENSGs pulled
+verbatim from each source matrix, genes-as-rows, already log2-transformed, all
+finite samples kept (no exclusion), with a leading ``symbol`` column:
+
+    positive_controls_cerebellumlog2_expression.csv       (4 genes x 266 samples)
+    positive_controls_cerebellumlog2_v8_expression.csv    (4 genes x 241 samples)
+
+Each fourparam row is prefixed with a ``symbol`` column (the human positive-control gene)
 followed by the exact columns ``BhuvanFitter.fit("fourparam")`` returns (imported
 ``COLUMNS`` -- so ``gene`` holds the dataset-specific id: an ENSG for cerebellum,
 a worm transcript id for worm).
@@ -118,6 +126,53 @@ def fetch_values(csv_path: Path, id_set: set[str], n_lead: int) -> dict[str, np.
     return found
 
 
+def raw_header_and_rows(csv_path: Path, id_set: set[str], n_lead: int):
+    """Stream the source matrix once: return (lead_cols, sample_cols, {gid: [str
+    fields incl. lead cols]}) so the exact original per-sample values can be
+    re-emitted verbatim (no float round-trip)."""
+    rows: dict[str, list[str]] = {}
+    remaining = set(id_set)
+    with open(csv_path) as f:
+        header = f.readline().rstrip("\n").split(",")
+        lead_cols, sample_cols = header[:n_lead], header[n_lead:]
+        if remaining:
+            for line in f:
+                comma = line.find(",")
+                gid = line[:comma]
+                if gid in remaining:
+                    rows[gid] = line.rstrip("\n").split(",")
+                    remaining.discard(gid)
+                    if not remaining:
+                        break
+    if remaining:
+        raise KeyError(f"{sorted(remaining)} not found in {csv_path.name}")
+    return lead_cols, sample_cols, rows
+
+
+def write_raw_expression(name: str, csv_path: Path, n_lead: int, id_map: dict) -> Path:
+    """Write the raw (already log-transformed) per-sample expression rows for the
+    control genes, genes-as-rows, mirroring the source matrix with a leading
+    ``symbol`` column. All finite values kept -- this is the unfiltered raw data."""
+    ids = {gid for gid in id_map.values() if isinstance(gid, str) and gid}
+    lead_cols, sample_cols, src = raw_header_and_rows(csv_path, ids, n_lead)
+    records = []
+    for symbol in CONTROLS:
+        gid = id_map[symbol]
+        if not (isinstance(gid, str) and gid):
+            continue
+        fields = src[gid]
+        rec = {"symbol": symbol}
+        rec.update(zip(lead_cols, fields[:n_lead]))
+        rec.update(zip(sample_cols, fields[n_lead:]))
+        records.append(rec)
+    out_cols = ["symbol"] + lead_cols + sample_cols
+    table = pd.DataFrame.from_records(records, columns=out_cols)
+    out = TABLES / f"positive_controls_{name}_expression.csv"
+    table.to_csv(out, index=False)
+    print(f"  wrote {out.name}  ({len(table)} genes x {len(sample_cols)} samples)")
+    return out
+
+
 def fit_values(gid: str, values: np.ndarray, threshold) -> dict:
     """Fit one gene's value array (mirrors both generators' _fit_one)."""
     data = values[np.isfinite(values)]
@@ -189,9 +244,20 @@ def main() -> None:
         written.extend(build_dataset_tables(name, csv_path, n_lead, id_map,
                                             args.no_push))
 
-    # Compact TI summary across every table written.
+    # Raw per-sample (already log-transformed) expression for the control genes,
+    # cerebellum datasets only (worm has no ortholog for 3 of the 4 controls).
+    print("\n=== raw expression tables (cerebellum) ===")
+    for name, csv_path, n_lead, id_map in DATASETS:
+        if not name.startswith("cerebellum"):
+            continue
+        written.append(write_raw_expression(name, csv_path, n_lead, id_map))
+
+    # Compact TI summary across every fourparam table written (raw expression
+    # tables have no truncationindex column, so they're skipped).
     print("\nTruncation index by table:")
     for out in written:
+        if "fourparam" not in out.name:
+            continue
         t = pd.read_csv(out)
         for _, r in t.iterrows():
             ti = r["truncationindex"]
