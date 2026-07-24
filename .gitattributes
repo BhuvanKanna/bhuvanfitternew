@@ -2,3 +2,7 @@ worm.csv filter=lfs diff=lfs merge=lfs -text
 cerebellumlog2.csv filter=lfs diff=lfs merge=lfs -text
 data/cerebellumlog2_v8.csv filter=lfs diff=lfs merge=lfs -text
 gene_tpm_brain_cerebellum_v8.gct filter=lfs diff=lfs merge=lfs -text
+data/cerebellarhemispherelog2_v8.csv filter=lfs diff=lfs merge=lfs -text
+data/liverlog2_v8.csv filter=lfs diff=lfs merge=lfs -text
+data/gene_tpm_brain_cerebellar_hemisphere_v8.gct.gz filter=lfs diff=lfs merge=lfs -text
+data/gene_tpm_liver_v8.gct.gz filter=lfs diff=lfs merge=lfs -text
